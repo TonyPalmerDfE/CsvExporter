@@ -1,0 +1,10 @@
+{
+  "profiles": {
+    "CsvExporter": {
+      "commandName": "Project"
+    },
+    "Container (Dockerfile)": {
+      "commandName": "Docker"
+    }
+  }
+}
