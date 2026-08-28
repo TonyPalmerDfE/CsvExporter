@@ -99,6 +99,7 @@ CREATE TABLE core.establishment (
     name TEXT NOT NULL,
     establishment_number TEXT,
     laestab TEXT,
+    dfe_number TEXT,
     establishment_type_id BIGINT NOT NULL,
     establishment_status_id BIGINT NOT NULL,
     headteacher_role_assignment_id BIGINT,
