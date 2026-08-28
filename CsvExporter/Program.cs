@@ -298,12 +298,16 @@ class Program
                 ON CONFLICT (code) DO NOTHING;" },
 
         { "Core_Establishment", @"
-                INSERT INTO core.establishment (urn, uid, name, establishment_number, establishment_type_id, establishment_status_id)
+                INSERT INTO core.establishment (urn, uid, name, establishment_number, laestab, establishment_type_id, establishment_status_id)
                 SELECT DISTINCT 
                     s.urn,
                     NULL, 
                     s.establishmentname,
                     s.establishmentnumber,
+                    CONCAT(
+                        TRIM(s.la_code), 
+                        LPAD(TRIM(s.establishmentnumber), 4, '0')
+                    ) AS laestab,
                     t.establishment_type_id,
                     st.establishment_status_id
                 FROM staging_table s
