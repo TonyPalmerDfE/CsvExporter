@@ -10,10 +10,10 @@ namespace CsvExporter;
 class Program
 {
     private const string Host = "localhost";
-    private const int Port = 5432;
+    private const int Port = 5440;
     private const string Username = "postgres";
     private const string Password = "postgres";
-    private const string DatabaseName = "eprdat_development";
+    private const string DatabaseName = "eprdat_development_with_search_provider";
 
     private static int? MaxRows = null;
     private const string CsvFilePath = @"data/edubasealldata.csv";
@@ -564,50 +564,83 @@ class Program
             { "Core_SearchProvider", @"
                 INSERT INTO core.search_provider
                 (
-                    urn,
-                    group_uid,
-                    ukprn,
-                    laestab,
+                    provider_id,
+                    provider_name,
+                    la_estab,
                     provider_type,
-                    address,
-                    name,
-                    company_house_number,
-                    number_of_academies,
+                    provider_address,
+                    companies_house_number,
+                    uk_provider_reference_number,
                     postcode,
                     county,
                     town,
-                    local_authority
+                    local_authority_name,
+                    group_uid,
+                    academy_counts,
+                    provider_category
                 )
-                SELECT DISTINCT
-                    s.urn,
-                    s.trusts_code,
-                    s.ukprn,
-                    CONCAT(TRIM(s.la_code), LPAD(TRIM(s.establishmentnumber), 4, '0')),
-                    s.typeofestablishment_name,
+                -- Establishments
+                select distinct
+                    s.urn as provider_id,
+                    s.establishmentname as provider_name,
+                    CONCAT(TRIM(s.la_code), LPAD(TRIM(s.establishmentnumber), 4, '0')) as la_estab,
+                    s.typeofestablishment_name as provider_type,
                     CONCAT_WS(', ',
                         s.street,
                         s.locality,
                         s.town,
                         s.county_name,
                         s.postcode
-                    ),
-                    s.establishmentname,
-                    s.chnumber,
-                    academy_counts.number_of_academies,
-                    s.postcode,
-                    s.county_name,
-                    s.town,
-                    s.la_name
-                FROM staging_table s
-                LEFT JOIN (
-                    SELECT
-                        trusts_code,
-                        COUNT(DISTINCT urn) AS number_of_academies
-                    FROM staging_table
-                    WHERE trusts_code IS NOT NULL
-                    GROUP BY trusts_code
-                ) academy_counts
-                    ON academy_counts.trusts_code = s.trusts_code;
+                    ) as provider_address,
+                    s.chnumber as companies_house_number,
+                    s.ukprn as uk_provider_reference_number,
+                    s.postcode as postcode,
+                    s.county_name as county,
+                    s.town as town,
+                    s.la_name as local_authority_name,
+                    null as group_uid,
+                    0 as academy_counts,
+                    'Establishment' as provider_category
+                from staging_table s
+                union all
+                -- Groups
+                select distinct
+	                g.code as provider_id, -- group_id
+	                g.name as provider_name,
+	                null as la_estab,
+	                gt.name as provider_type,
+	                null as provider_address,
+	                null as companies_house_number,
+	                null as uk_provider_reference_number,
+	                null as postcode,
+	                null as county,
+	                null as town,
+	                null as local_authority_name,
+	                gi.identifier_value as group_uid,
+	                academy_counts.number_of_academies as academy_counts,
+	                'Group' as provider_category
+                from core.group_record g
+                left join core.establishment_group_membership egm
+	                on egm.group_id = g.group_id
+                left join core.establishment e 
+	                on e.establishment_id = egm.establishment_id
+                left join ref.group_type gt 
+	                on gt.group_type_id = g.group_type_id
+                left join core.group_identifier gi
+	                on gi.group_id = g.group_id
+                left join
+                (
+	                select
+		                egm.group_id,
+		                COUNT(distinct e.urn) as number_of_academies
+	                from core.establishment_group_membership egm
+	                left join core.establishment e
+		                on e.establishment_id = egm.establishment_id
+	                where egm.group_id is not null
+                    group by egm.group_id
+                )
+                academy_counts
+                    on academy_counts.group_id  = g.group_id
                 " }
 
             //{ "Cleanup_Staging", @"DROP TABLE IF EXISTS staging_table;" }
