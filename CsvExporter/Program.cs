@@ -567,7 +567,8 @@ class Program
                     provider_id,
                     provider_name,
                     la_estab,
-                    provider_type,
+                    provider_type_name,
+                    provider_type_id,
                     provider_address,
                     companies_house_number,
                     uk_provider_reference_number,
@@ -575,40 +576,61 @@ class Program
                     county,
                     town,
                     local_authority_name,
-                    group_uid,
+                    group_id,
                     academy_counts,
                     provider_category
                 )
                 -- Establishments
+                -- Establishments
                 select distinct
-                    s.urn as provider_id,
-                    s.establishmentname as provider_name,
-                    CONCAT(TRIM(s.la_code), LPAD(TRIM(s.establishmentnumber), 4, '0')) as la_estab,
-                    s.typeofestablishment_name as provider_type,
+                    e.urn as provider_id,
+                    e.name as provider_name,
+                    e.laestab as la_estab,
+                    et.name as provider_type_name,
+                    e.establishment_type_id as provider_type_id,
                     CONCAT_WS(', ',
-                        s.street,
-                        s.locality,
+                        s.address_line_1,
+                        s.address_line_2,
                         s.town,
-                        s.county_name,
+                        s.county,
                         s.postcode
                     ) as provider_address,
-                    s.chnumber as companies_house_number,
-                    s.ukprn as uk_provider_reference_number,
+                    st.chnumber as companies_house_number,
+                    ei.identifier_value as uk_provider_reference_number,
                     s.postcode as postcode,
-                    s.county_name as county,
+                    s.county as county,
                     s.town as town,
-                    s.la_name as local_authority_name,
-                    null as group_uid,
+                    ea.authority_name as local_authority_name,
+                    egm.group_ids as group_id,
                     0 as academy_counts,
                     'Establishment' as provider_category
-                from staging_table s
+                from core.establishment e
+                left join ref.establishment_type et
+                    on et.establishment_type_id = e.establishment_type_id
+                left join core.site s
+                    on s.establishment_id = e.establishment_id
+                left join core.establishment_authority ea
+                    on ea.establishment_id = e.establishment_id
+                left join core.establishment_identifier ei
+                    on ei.establishment_id = e.establishment_id
+                   and ei.identifier_type = 'UKPRN'
+                left join staging_table st
+                    on st.urn = e.urn
+                left join (
+                    select establishment_id,
+                           string_agg(group_id::text, ',') as group_ids
+                    from core.establishment_group_membership
+                    group by establishment_id
+                ) egm
+                    on egm.establishment_id = e.establishment_id
                 union all
                 -- Groups
                 select distinct
 	                g.code as provider_id, -- group_id
 	                g.name as provider_name,
 	                null as la_estab,
-	                gt.name as provider_type,
+	                gt.name as provider_type_name,
+	                g.group_type_id as provider_type_id,
 	                null as provider_address,
 	                null as companies_house_number,
 	                null as uk_provider_reference_number,
@@ -616,7 +638,7 @@ class Program
 	                null as county,
 	                null as town,
 	                null as local_authority_name,
-	                gi.identifier_value as group_uid,
+	                null as group_id,
 	                academy_counts.number_of_academies as academy_counts,
 	                'Group' as provider_category
                 from core.group_record g
