@@ -147,9 +147,9 @@ CREATE TABLE core.role (
 );
 
 -- ------------------------------------------------------------
--- Search Providers
+-- Search Aggergate Table
 -- ------------------------------------------------------------
-CREATE TABLE core.search_provider (
+CREATE TABLE core.search_aggregate (
     provider_id TEXT,
     provider_name TEXT,
     la_estab TEXT,
@@ -484,14 +484,14 @@ CREATE EXTENSION IF NOT EXISTS pg_trgm;
 --
 CREATE INDEX idx_establishment_urn ON core.establishment (urn);
 --
-CREATE INDEX idx_search_provider_id ON core.search_provider (provider_id);
-CREATE INDEX idx_search_provider_name ON core.search_provider (provider_name);
-CREATE INDEX idx_search_provider_laestab ON core.search_provider (la_estab);
-CREATE INDEX idx_search_provider_companies_house_number ON core.search_provider (companies_house_number);
-CREATE INDEX idx_search_provider_ukprn ON core.search_provider (uk_provider_reference_number);
-CREATE INDEX idx_search_provider_postcode ON core.search_provider (postcode);
-CREATE INDEX idx_search_provider_county ON core.search_provider (county);
-CREATE INDEX idx_search_provider_town ON core.search_provider (town);
-CREATE INDEX idx_search_provider_local_authority_name ON core.search_provider (local_authority_name);
-CREATE INDEX idx_search_provider_group_uid ON core.search_provider (group_uid);
-CREATE INDEX idx_search_provider_name_trgm ON core.search_provider USING gin (provider_name gin_trgm_ops);
+CREATE INDEX idx_search_provider_id ON core.search_aggregate (provider_id);
+CREATE INDEX idx_search_provider_name ON core.search_aggregate (provider_name);
+CREATE INDEX idx_search_provider_laestab ON core.search_aggregate (la_estab);
+CREATE INDEX idx_search_provider_companies_house_number ON core.search_aggregate (companies_house_number);
+CREATE INDEX idx_search_provider_ukprn ON core.search_aggregate (uk_provider_reference_number);
+CREATE INDEX idx_search_provider_postcode ON core.search_aggregate (postcode);
+CREATE INDEX idx_search_provider_county ON core.search_aggregate (county);
+CREATE INDEX idx_search_provider_town ON core.search_aggregate (town);
+CREATE INDEX idx_search_provider_local_authority_name ON core.search_aggregate (local_authority_name);
+CREATE INDEX idx_search_provider_group_uid ON core.search_aggregate (group_uid);
+CREATE INDEX idx_search_provider_name_trgm ON core.search_aggregate USING gin (provider_name gin_trgm_ops);

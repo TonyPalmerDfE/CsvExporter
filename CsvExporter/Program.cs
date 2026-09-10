@@ -562,7 +562,7 @@ class Program
                     ON CONFLICT (group_id, identifier_type, identifier_value) DO NOTHING;" },
 
             { "Core_SearchProvider", @"
-                INSERT INTO core.search_provider
+                INSERT INTO core.search_aggregate
                 (
                     provider_id,
                     provider_name,
