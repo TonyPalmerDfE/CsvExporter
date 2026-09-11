@@ -10,10 +10,10 @@ namespace CsvExporter;
 class Program
 {
     private const string Host = "localhost";
-    private const int Port = 5440;
+    private const int Port = 5432;
     private const string Username = "postgres";
     private const string Password = "postgres";
-    private const string DatabaseName = "eprdat_development_with_search_provider";
+    private const string DatabaseName = "eprdat_development";
 
     private static int? MaxRows = null;
     private const string CsvFilePath = @"data/edubasealldata.csv";
@@ -580,7 +580,6 @@ class Program
                     academy_counts,
                     provider_category
                 )
-                -- Establishments
                 -- Establishments
                 select distinct
                     e.urn as provider_id,
