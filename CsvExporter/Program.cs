@@ -567,6 +567,7 @@ class Program
                     provider_id,
                     provider_name,
                     la_estab,
+                    dfe_number,
                     provider_type_name,
                     provider_type_id,
                     provider_address,
@@ -577,6 +578,7 @@ class Program
                     town,
                     local_authority_name,
                     group_id,
+                    group_uid,
                     academy_counts,
                     provider_category
                 )
@@ -585,6 +587,7 @@ class Program
                     e.urn as provider_id,
                     e.name as provider_name,
                     e.laestab as la_estab,
+                    e.dfe_number as dfe_number,
                     et.name as provider_type_name,
                     e.establishment_type_id as provider_type_id,
                     CONCAT_WS(', ',
@@ -601,6 +604,7 @@ class Program
                     s.town as town,
                     ea.authority_name as local_authority_name,
                     egm.group_ids as group_id,
+                    null as group_uid,
                     0 as academy_counts,
                     'Establishment' as provider_category
                 from core.establishment e
@@ -624,44 +628,36 @@ class Program
                     on egm.establishment_id = e.establishment_id
                 union all
                 -- Groups
-                select distinct
-	                g.code as provider_id, -- group_id
-	                g.name as provider_name,
-	                null as la_estab,
-	                gt.name as provider_type_name,
-	                g.group_type_id as provider_type_id,
-	                null as provider_address,
-	                null as companies_house_number,
-	                null as uk_provider_reference_number,
-	                null as postcode,
-	                null as county,
-	                null as town,
-	                null as local_authority_name,
-	                null as group_id,
-	                academy_counts.number_of_academies as academy_counts,
-	                'Group' as provider_category
+                select
+                    g.code as provider_id,
+                    g.name as provider_name,
+                    null as la_estab,
+                    null as dfe_number,
+                    gt.name as provider_type_name,
+                    g.group_type_id as provider_type_id,
+                    null as provider_address,
+                    null as companies_house_number,
+                    null as uk_provider_reference_number,
+                    null as postcode,
+                    null as county,
+                    null as town,
+                    null as local_authority_name,
+                    concat('ID', g.code) as group_id,
+                    gen_random_uuid()::text as group_uid,
+                    coalesce(ac.number_of_academies, 0) as academy_counts,
+                    'Group' as provider_category
                 from core.group_record g
-                left join core.establishment_group_membership egm
-	                on egm.group_id = g.group_id
-                left join core.establishment e 
-	                on e.establishment_id = egm.establishment_id
-                left join ref.group_type gt 
-	                on gt.group_type_id = g.group_type_id
-                left join core.group_identifier gi
-	                on gi.group_id = g.group_id
+                left join ref.group_type gt
+                    on gt.group_type_id = g.group_type_id
                 left join
                 (
-	                select
-		                egm.group_id,
-		                COUNT(distinct e.urn) as number_of_academies
-	                from core.establishment_group_membership egm
-	                left join core.establishment e
-		                on e.establishment_id = egm.establishment_id
-	                where egm.group_id is not null
-                    group by egm.group_id
-                )
-                academy_counts
-                    on academy_counts.group_id  = g.group_id
+                    select
+                        group_id,
+                        count(distinct establishment_id) as number_of_academies
+                    from core.establishment_group_membership
+                    group by group_id
+                ) ac
+                    on ac.group_id = g.group_id
                 " }
 
             //{ "Cleanup_Staging", @"DROP TABLE IF EXISTS staging_table;" }
