@@ -216,20 +216,48 @@ class Program
     private static readonly Dictionary<string, string> MappingScripts = new()
     {
         {
-            "Core_GroupAggregate", 
+            "Core_GroupAggregate",
             @"
                 INSERT INTO core.group_aggregate
                 (
                     group_id,
                     group_uid,
                     name,
-                    group_type_name
+ 
+                    ukprn,
+                    companies_house_number,
+ 
+                    site_name,
+                    address_line_1,
+                    address_line_2,
+                    town,
+                    county,
+                    postcode,
+ 
+                    group_type_name,
+ 
+                    group_status_label,
+                    group_status_effective_date
                 )
                 SELECT
                     group_code,
                     ROW_NUMBER() OVER (ORDER BY group_code),
                     group_name,
-                    group_type_name
+
+                    NULL AS ukprn,
+                    NULL AS companies_house_number,
+
+                    NULL AS site_name,
+                    NULL AS address_line_1,
+                    NULL AS address_line_2,
+                    NULL AS town,
+                    NULL AS county,
+                    NULL AS postcode,
+
+                    group_type_name,
+
+                    NULL AS group_status_label,
+                    NULL::DATE AS group_status_effective_date
                 FROM
                 (
                     SELECT DISTINCT
