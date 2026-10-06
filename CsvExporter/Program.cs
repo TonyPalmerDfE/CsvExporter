@@ -214,354 +214,238 @@ class Program
     }
 
     private static readonly Dictionary<string, string> MappingScripts = new()
+    {
         {
-            { "Ref_EstablishmentFamily", @"
-                    INSERT INTO ref.establishment_family (code, name)
-                    SELECT DISTINCT 
-                        establishmenttypegroup_code, 
-                        COALESCE(establishmenttypegroup_name, 'NOT IN EXTRACT') 
-                    FROM staging_table 
-                    WHERE establishmenttypegroup_code IS NOT NULL
-                    ON CONFLICT (code) DO NOTHING;" },
-
-            { "Ref_EstablishmentType", @"
-                    INSERT INTO ref.establishment_type (establishment_family_id, code, name)
-                    SELECT DISTINCT 
-                        f.establishment_family_id, 
-                        s.typeofestablishment_code, 
-                        COALESCE(s.typeofestablishment_name, 'NOT IN EXTRACT')
-                    FROM staging_table s
-                    JOIN ref.establishment_family f ON f.code = s.establishmenttypegroup_code
-                    WHERE s.typeofestablishment_code IS NOT NULL
-                    ON CONFLICT (code) DO NOTHING;" },
-
-            { "Ref_EstablishmentStatus", @"
-                    INSERT INTO ref.establishment_status (code, name)
-                    SELECT DISTINCT 
-                        establishmentstatus_code, 
-                        COALESCE(establishmentstatus_name, 'NOT IN EXTRACT')
-                    FROM staging_table 
-                    WHERE establishmentstatus_code IS NOT NULL
-                    ON CONFLICT (code) DO NOTHING;" },
-
-            { "Ref_Title", @"
-                    INSERT INTO ref.title (name)
-                    SELECT DISTINCT headtitle_name 
-                    FROM staging_table 
-                    WHERE headtitle_name IS NOT NULL
-                    ON CONFLICT (name) DO NOTHING;" },
-
-            { "Ref_EducationPhaseGroup", @"
-                    INSERT INTO ref.education_phase_group (code, name) 
-                    VALUES ('ALL', 'All Phases') 
-                    ON CONFLICT (code) DO NOTHING;" },
-
-            { "Ref_EducationPhase", @"
-                    INSERT INTO ref.education_phase (education_phase_group_id, code, name)
-                    SELECT DISTINCT 
-                        pg.education_phase_group_id, 
-                        s.phaseofeducation_code, 
-                        COALESCE(s.phaseofeducation_name, 'NOT IN EXTRACT')
-                    FROM staging_table s
-                    CROSS JOIN ref.education_phase_group pg
-                    WHERE s.phaseofeducation_code IS NOT NULL AND pg.code = 'ALL'
-                    ON CONFLICT (code) DO NOTHING;" },
-
-            { "Ref_ReasonEstablishmentOpened", @"
-                    INSERT INTO ref.reason_establishment_opened (code, name)
-                    SELECT DISTINCT 
-                        reasonestablishmentopened_code, 
-                        COALESCE(reasonestablishmentopened_name, 'NOT IN EXTRACT')
-                    FROM staging_table
-                    WHERE reasonestablishmentopened_code IS NOT NULL
-                    ON CONFLICT (code) DO NOTHING;" },
-
-            { "Ref_ReasonEstablishmentClosed", @"
-                    INSERT INTO ref.reason_establishment_closed (code, name)
-                    SELECT DISTINCT 
-                        reasonestablishmentclosed_code, 
-                        COALESCE(reasonestablishmentclosed_name, 'NOT IN EXTRACT')
-                    FROM staging_table
-                    WHERE reasonestablishmentclosed_code IS NOT NULL
-                    ON CONFLICT (code) DO NOTHING;" },
-
-            { "Ref_RoleType", @"
-                    INSERT INTO ref.role_type (code, name)
-                    SELECT DISTINCT 'HT', 'Headteacher'
-                    WHERE NOT EXISTS (SELECT 1 FROM ref.role_type WHERE code = 'HT');" },
-
-            { "Ref_GroupType", @"
-                    INSERT INTO ref.group_type (code, name)
-                    VALUES 
-                        ('TRUST', 'Multi-Academy Trust'),
-                        ('FED', 'Federation')
-                    ON CONFLICT (code) DO NOTHING;" },
-
-            { "Core_Establishment", @"
-                    INSERT INTO core.establishment (urn, uid, name, establishment_number, laestab, dfe_number, establishment_type_id, establishment_status_id)
-                    SELECT DISTINCT 
-                        s.urn,
-                        NULL, 
-                        s.establishmentname,
-                        s.establishmentnumber,
-                        CONCAT(
-                            TRIM(s.la_code), 
-                            LPAD(TRIM(s.establishmentnumber), 4, '0')
-                        ) AS laestab,
-                        CONCAT(
-                            TRIM(s.la_code), 
-                            '/', 
-                            LPAD(TRIM(s.establishmentnumber), 4, '0')
-                        ) AS dfe_number,
-                        t.establishment_type_id,
-                        st.establishment_status_id
-                    FROM staging_table s
-                    JOIN ref.establishment_type t ON t.code = s.typeofestablishment_code
-                    JOIN ref.establishment_status st ON st.code = s.establishmentstatus_code
-                    WHERE s.urn IS NOT NULL
-                    ON CONFLICT (urn) DO NOTHING;" },
-
-            { "Core_EstablishmentAuthority", @"
-                    INSERT INTO core.establishment_authority (establishment_id, authority_code, authority_name)
-                    SELECT DISTINCT 
-                        e.establishment_id, 
-                        s.la_code, 
-                        s.la_name
-                    FROM staging_table s
-                    JOIN core.establishment e ON e.urn = s.urn
-                    WHERE s.la_code IS NOT NULL;" },
-
-            { "Core_EstablishmentReligion", @"
-                    INSERT INTO core.establishment_religion (establishment_id, religious_character, religious_ethos)
-                    SELECT DISTINCT 
-                        e.establishment_id, 
-                        s.religiouscharacter_name, 
-                        s.religiousethos_name
-                    FROM staging_table s
-                    JOIN core.establishment e ON e.urn = s.urn
-                    WHERE s.religiouscharacter_name IS NOT NULL OR s.religiousethos_name IS NOT NULL;" },
-
-            { "Core_EstablishmentInspection", @"
-                    INSERT INTO core.establishment_inspection (establishment_id, inspection_body, inspection_date, inspection_outcome)
-                    SELECT DISTINCT 
-                        e.establishment_id, 
-                        s.inspectoratename_name, 
-                        CASE 
-                            WHEN TRIM(s.dateoflastinspectionvisit) ~ '^[0-9]{1,2}[^0-9a-zA-Z][0-9]{1,2}[^0-9a-zA-Z][0-9]{2,4}' 
-                            THEN TO_DATE(LEFT(REPLACE(REPLACE(TRIM(s.dateoflastinspectionvisit), '/', '-'), '.', '-'), 10), 'DD-MM-YYYY')
-                            ELSE NULL 
-                        END,
-                        s.inspectoratereport
-                    FROM staging_table s
-                    JOIN core.establishment e ON e.urn = s.urn
-                    WHERE s.inspectoratename_name IS NOT NULL 
-                       OR s.dateoflastinspectionvisit IS NOT NULL 
-                       OR s.inspectoratereport IS NOT NULL;" },
-
-            { "Core_EstablishmentProvision", @"
-                    INSERT INTO core.establishment_provision (establishment_id, fsm, percentage_fsm)
-                    SELECT DISTINCT 
-                        e.establishment_id, 
-                        CASE 
-                            WHEN s.fsm ~ '^[0-9]+$' THEN CAST(s.fsm AS INTEGER) 
-                            ELSE NULL 
-                        END,
-                        CASE 
-                            WHEN s.percentagefsm ~ '^[0-9\.]+$' THEN CAST(s.percentagefsm AS NUMERIC) 
-                            ELSE NULL 
-                        END
-                    FROM staging_table s
-                    JOIN core.establishment e ON e.urn = s.urn
-                    ON CONFLICT (establishment_id) DO NOTHING;" },
-
-            { "Core_EstablishmentIdentifier_UKPRN", @"
-                    INSERT INTO core.establishment_identifier (establishment_id, identifier_type, identifier_value)
-                    SELECT DISTINCT e.establishment_id, 'UKPRN', s.ukprn
-                    FROM staging_table s
-                    JOIN core.establishment e ON e.urn = s.urn
-                    WHERE s.ukprn IS NOT NULL
-                    ON CONFLICT (establishment_id, identifier_type, identifier_value) DO NOTHING;" },
-
-            { "Core_EstablishmentIdentifier_UPRN", @"
-                    INSERT INTO core.establishment_identifier (establishment_id, identifier_type, identifier_value)
-                    SELECT DISTINCT e.establishment_id, 'UPRN', s.uprn
-                    FROM staging_table s
-                    JOIN core.establishment e ON e.urn = s.urn
-                    WHERE s.uprn IS NOT NULL
-                    ON CONFLICT (establishment_id, identifier_type, identifier_value) DO NOTHING;" },
-
-            { "Core_Site", @"
-                    INSERT INTO core.site (establishment_id, name, address_line_1, address_line_2, town, county, postcode)
-                    SELECT DISTINCT 
-                        e.establishment_id,
-                        s.sitename,
-                        s.street,
-                        s.locality,
-                        s.town,
-                        s.county_name,
-                        s.postcode
-                    FROM staging_table s
-                    JOIN core.establishment e ON e.urn = s.urn
-                    WHERE s.street IS NOT NULL;" },
-
-            { "Core_Contact", @"
-                    INSERT INTO core.contact (establishment_id, website, telephone_number)
-                    SELECT DISTINCT 
-                        e.establishment_id,
-                        s.schoolwebsite,
-                        s.telephonenum
-                    FROM staging_table s
-                    JOIN core.establishment e ON e.urn = s.urn
-                    WHERE s.schoolwebsite IS NOT NULL OR s.telephonenum IS NOT NULL;" },
-
-            { "Core_EstablishmentAdmissions", @"
-                    INSERT INTO core.establishment_admissions (establishment_id, admissions_policy, statutory_low_age, statutory_high_age)
+            "Core_GroupAggregate", 
+            @"
+                INSERT INTO core.group_aggregate
+                (
+                    group_id,
+                    group_uid,
+                    name,
+                    group_type_name
+                )
+                SELECT
+                    group_code,
+                    ROW_NUMBER() OVER (ORDER BY group_code),
+                    group_name,
+                    group_type_name
+                FROM
+                (
                     SELECT DISTINCT
-                        e.establishment_id,
-                        s.admissionspolicy_name,
-                        CAST(NULLIF(s.statutorylowage, '') AS INTEGER),
-                        CAST(NULLIF(s.statutoryhighage, '') AS INTEGER)
+                        s.trusts_code AS group_code,
+                        s.trusts_name AS group_name,
+                        'Multi-Academy Trust' AS group_type_name
                     FROM staging_table s
-                    JOIN core.establishment e ON e.urn = s.urn
-                    WHERE s.statutorylowage IS NOT NULL AND s.statutorylowage ~ '^[0-9]+$'
-                    ON CONFLICT (establishment_id) DO NOTHING;" },
-
-            { "Core_EstablishmentBoarding", @"
-                    INSERT INTO core.establishment_boarding (establishment_id, boarding_provision)
-                    SELECT DISTINCT
-                        e.establishment_id,
-                        s.boarders_name
-                    FROM staging_table s
-                    JOIN core.establishment e ON e.urn = s.urn
-                    WHERE s.boarders_name IS NOT NULL
-                    ON CONFLICT (establishment_id) DO NOTHING;" },
-
-            { "Core_GroupRecord_Trusts", @"
-                    INSERT INTO core.group_record (code, name, group_type_id)
-                    SELECT DISTINCT 
-                        s.trusts_code, 
-                        s.trusts_name, 
-                        gt.group_type_id
-                    FROM staging_table s
-                    JOIN ref.group_type gt ON gt.code = 'TRUST'
                     WHERE s.trusts_code IS NOT NULL
-                    ON CONFLICT (code) DO NOTHING;" },
 
-            { "Core_GroupRecord_Federations", @"
-                    INSERT INTO core.group_record (code, name, group_type_id)
-                    SELECT DISTINCT 
-                        s.federations_code, 
-                        s.federations_name, 
-                        gt.group_type_id
+                    UNION
+
+                    SELECT DISTINCT
+                        s.federations_code,
+                        s.federations_name,
+                        'Federation'
                     FROM staging_table s
-                    JOIN ref.group_type gt ON gt.code = 'FED'
                     WHERE s.federations_code IS NOT NULL
-                    ON CONFLICT (code) DO NOTHING;" },
+                ) groups;
+            "
+        },
+        {
+            "Core_EstablishmentAggregate", 
+            @"
+                INSERT INTO core.establishment_aggregate
+                (
+                    urn,
+                    name,
+                    establishment_number,
 
-            { "Core_EstablishmentGroupMembership", @"
-                    INSERT INTO core.establishment_group_membership (establishment_id, group_id, membership_category)
-                    SELECT DISTINCT 
-                        e.establishment_id, 
-                        g.group_id, 
-                        'Trust Membership'
-                    FROM staging_table s
-                    JOIN core.establishment e ON e.urn = s.urn
-                    JOIN core.group_record g ON g.code = s.trusts_code
-                    WHERE s.trusts_code IS NOT NULL;" },
+                    status_name,
 
-            { "Core_Person_Headteachers", @"
-                    INSERT INTO core.person (title_id, given_name, family_name, display_name)
-                    SELECT DISTINCT 
-                        t.title_id, 
-                        s.headfirstname, 
-                        s.headlastname, 
-                        TRIM(CONCAT_WS(' ', s.headfirstname, s.headlastname))
-                    FROM staging_table s
-                    LEFT JOIN ref.title t ON t.name = s.headtitle_name
-                    WHERE s.headfirstname IS NOT NULL OR s.headlastname IS NOT NULL;" },
+                    establishment_type_name,
 
-            { "Core_EstablishmentGroupMembership_Federations", @"
-                    INSERT INTO core.establishment_group_membership (establishment_id, group_id, membership_category)
-                    SELECT DISTINCT 
-                        e.establishment_id, 
-                        g.group_id, 
-                        'Federation Membership'
-                    FROM staging_table s
-                    JOIN core.establishment e ON e.urn = s.urn
-                    JOIN core.group_record g ON g.code = s.federations_code
-                    WHERE s.federations_code IS NOT NULL;" },
+                    education_phase_name,
 
-            { "Core_Role", @"
-                    INSERT INTO core.role (person_id, role_type_id)
-                    SELECT DISTINCT p.person_id, rt.role_type_id
-                    FROM staging_table s
-                    JOIN core.person p ON p.given_name = s.headfirstname AND p.family_name = s.headlastname
-                    CROSS JOIN (SELECT role_type_id FROM ref.role_type WHERE code = 'HT' LIMIT 1) rt
-                    WHERE s.headfirstname IS NOT NULL OR s.headlastname IS NOT NULL;" },
+                    opened_date,
+                    opened_reason,
 
-            { "Core_RoleAssignment", @"
-                    INSERT INTO core.role_assignment (role_id, establishment_id, preferred_job_title)
-                    SELECT DISTINCT r.role_id, e.establishment_id, s.headpreferredjobtitle
-                    FROM staging_table s
-                    JOIN core.establishment e ON e.urn = s.urn
-                    JOIN core.person p ON p.given_name = s.headfirstname AND p.family_name = s.headlastname
-                    JOIN core.role r ON r.person_id = p.person_id
-                    WHERE s.headfirstname IS NOT NULL OR s.headlastname IS NOT NULL;" },
+                    closed_date,
+                    closed_reason,
 
-            { "Core_Establishment_UpdateHeadteacher", @"
-                    UPDATE core.establishment
-                    SET headteacher_role_assignment_id = ra.role_assignment_id
-                    FROM core.role_assignment ra
-                    WHERE core.establishment.establishment_id = ra.establishment_id;" },
+                    group_code,
+                    group_uid,
+                    group_name,
+                    group_type_name,
 
-            { "Core_EstablishmentLifecycle_Opened", @"
-                    INSERT INTO core.establishment_lifecycle_event (establishment_id, event_type, opened_reason_id, event_date)
-                    SELECT DISTINCT 
-                        e.establishment_id, 
-                        'Opened', 
-                        ro.reason_establishment_opened_id,
-                        TO_DATE(LEFT(REPLACE(REPLACE(TRIM(s.opendate), '/', '-'), '.', '-'), 10), 'DD-MM-YYYY')
-                    FROM staging_table s
-                    JOIN core.establishment e ON e.urn = s.urn
-                    LEFT JOIN ref.reason_establishment_opened ro ON ro.code = s.reasonestablishmentopened_code
-                    WHERE TRIM(s.opendate) ~ '^[0-9]{1,2}[^0-9a-zA-Z][0-9]{1,2}[^0-9a-zA-Z][0-9]{2,4}';" },
+                    site_name,
+                    address_line_1,
+                    address_line_2,
+                    town,
+                    county,
+                    postcode,
 
-            { "Core_EstablishmentLifecycle_Closed", @"
-                    INSERT INTO core.establishment_lifecycle_event (establishment_id, event_type, closed_reason_id, event_date)
-                    SELECT DISTINCT 
-                        e.establishment_id, 
-                        'Closed', 
-                        rc.reason_establishment_closed_id,
-                        TO_DATE(LEFT(REPLACE(REPLACE(TRIM(s.closedate), '/', '-'), '.', '-'), 10), 'DD-MM-YYYY')
-                    FROM staging_table s
-                    JOIN core.establishment e ON e.urn = s.urn
-                    LEFT JOIN ref.reason_establishment_closed rc ON rc.code = s.reasonestablishmentclosed_code
-                    WHERE TRIM(s.closedate) ~ '^[0-9]{1,2}[^0-9a-zA-Z][0-9]{1,2}[^0-9a-zA-Z][0-9]{2,4}';" },
+                    local_authority_code,
+                    local_authority_name,
 
-            { "Core_EstablishmentIdentifier_FEHE", @"
-                    INSERT INTO core.establishment_identifier (establishment_id, identifier_type, identifier_value)
-                    SELECT DISTINCT e.establishment_id, 'FEHE', s.feheidentifier
-                    FROM staging_table s
-                    JOIN core.establishment e ON e.urn = s.urn
-                    WHERE s.feheidentifier IS NOT NULL AND TRIM(s.feheidentifier) != ''
-                    ON CONFLICT (establishment_id, identifier_type, identifier_value) DO NOTHING;" },
+                    statutory_low_age,
+                    statutory_high_age,
 
-            { "Core_EstablishmentIdentifier_CHNumber", @"
-                    INSERT INTO core.establishment_identifier (establishment_id, identifier_type, identifier_value)
-                    SELECT DISTINCT e.establishment_id, 'CompaniesHouse', s.chnumber
-                    FROM staging_table s
-                    JOIN core.establishment e ON e.urn = s.urn
-                    WHERE s.chnumber IS NOT NULL AND TRIM(s.chnumber) != ''
-                    ON CONFLICT (establishment_id, identifier_type, identifier_value) DO NOTHING;" },
+                    religious_character,
 
-            { "Core_GroupIdentifier_Seeding", @"
-                    INSERT INTO core.group_identifier (group_id, identifier_type, identifier_value)
-                    SELECT DISTINCT group_id, 'UID', code
-                    FROM core.group_record
-                    WHERE code IS NOT NULL
-                    ON CONFLICT (group_id, identifier_type, identifier_value) DO NOTHING;" },
+                    ofsted_inspection_date,
+                    ofsted_report_url,
 
-            { "Core_SearchProvider", @"
+                    headteacher_name,
+
+                    website,
+                    telephone_number
+                )
+                SELECT DISTINCT
+                    s.urn,
+                    s.establishmentname,
+                    s.establishmentnumber,
+
+                    s.establishmentstatus_name,
+
+                    s.typeofestablishment_name,
+
+                    s.phaseofeducation_name,
+
+                    CASE
+                        WHEN TRIM(s.opendate) ~ '^[0-9]'
+                        THEN TO_DATE(
+                            LEFT(REPLACE(REPLACE(TRIM(s.opendate), '/', '-'), '.', '-'), 10),
+                            'DD-MM-YYYY')
+                        ELSE NULL
+                    END,
+
+                    s.reasonestablishmentopened_name,
+
+                    CASE
+                        WHEN TRIM(s.closedate) ~ '^[0-9]'
+                        THEN TO_DATE(
+                            LEFT(REPLACE(REPLACE(TRIM(s.closedate), '/', '-'), '.', '-'), 10),
+                            'DD-MM-YYYY')
+                        ELSE NULL
+                    END,
+
+                    s.reasonestablishmentclosed_name,
+
+                    COALESCE(
+                        s.trusts_code,
+                        s.federations_code
+                    ),
+
+                    ga.group_uid,
+
+                    COALESCE(
+                        s.trusts_name,
+                        s.federations_name
+                    ),
+
+                    CASE
+                        WHEN s.trusts_code IS NOT NULL
+                            THEN 'Multi-Academy Trust'
+                        WHEN s.federations_code IS NOT NULL
+                            THEN 'Federation'
+                        ELSE NULL
+                    END,
+
+                    s.sitename,
+                    s.street,
+                    s.locality,
+                    s.town,
+                    s.county_name,
+                    s.postcode,
+
+                    s.la_code,
+                    s.la_name,
+
+                    CAST(NULLIF(s.statutorylowage, '') AS INTEGER),
+                    CAST(NULLIF(s.statutoryhighage, '') AS INTEGER),
+
+                    s.religiouscharacter_name,
+
+                    CASE
+                        WHEN TRIM(s.dateoflastinspectionvisit) ~ '^[0-9]'
+                        THEN TO_DATE(
+                            LEFT(REPLACE(REPLACE(TRIM(s.dateoflastinspectionvisit), '/', '-'), '.', '-'), 10),
+                            'DD-MM-YYYY')
+                        ELSE NULL
+                    END,
+
+                    s.inspectoratereport,
+
+                    TRIM(CONCAT_WS(
+                        ' ',
+                        s.headfirstname,
+                        s.headlastname)),
+
+                    s.schoolwebsite,
+                    s.telephonenum
+
+                FROM staging_table s
+                LEFT JOIN core.group_aggregate ga
+                    ON ga.group_id = COALESCE(
+                        s.trusts_code,
+                        s.federations_code
+                    )
+                WHERE s.urn IS NOT NULL;
+            "
+        },
+        { 
+            "Core_EstablishmentGovernorAggregate",
+            @"
+                INSERT INTO core.establishment_governor_aggregate
+                (
+                    establishment_urn,
+                    governor_id,
+                    governor_name,
+                    start_date
+                )
+                SELECT DISTINCT
+                    s.urn,
+                    md5(
+                        COALESCE(s.headfirstname, '')
+                        || COALESCE(s.headlastname, '')
+                    ),
+                    TRIM(CONCAT_WS(
+                        ' ',
+                        s.headfirstname,
+                        s.headlastname)),
+                    NULL::DATE
+                FROM staging_table s
+                WHERE s.headfirstname IS NOT NULL
+                OR s.headlastname IS NOT NULL;
+            "},
+        {
+            "Core_GroupMemberAggregate",
+            @"
+                INSERT INTO core.group_member_aggregate
+                (
+                    group_id,
+                    establishment_urn,
+                    establishment_name
+                )
+                SELECT DISTINCT
+                    s.trusts_code,
+                    s.urn,
+                    s.establishmentname
+                FROM staging_table s
+                WHERE s.trusts_code IS NOT NULL
+
+                UNION
+
+                SELECT DISTINCT
+                    s.federations_code,
+                    s.urn,
+                    s.establishmentname
+                FROM staging_table s
+                WHERE s.federations_code IS NOT NULL;
+            "
+        },
+        {
+            "Core_SearchAggregate",
+            @"
                 INSERT INTO core.search_aggregate
                 (
                     provider_id,
@@ -583,83 +467,84 @@ class Program
                     provider_category
                 )
                 -- Establishments
-                select distinct
-                    e.urn as provider_id,
-                    e.name as provider_name,
-                    e.laestab as la_estab,
-                    e.dfe_number as dfe_number,
-                    et.name as provider_type_name,
-                    e.establishment_type_id as provider_type_id,
-                    CONCAT_WS(', ',
-                        s.address_line_1,
-                        s.address_line_2,
-                        s.town,
-                        s.county,
-                        s.postcode
-                    ) as provider_address,
-                    st.chnumber as companies_house_number,
-                    ei.identifier_value as uk_provider_reference_number,
-                    s.postcode as postcode,
-                    s.county as county,
-                    s.town as town,
-                    ea.authority_name as local_authority_name,
-                    egm.group_ids as group_id,
-                    null as group_uid,
-                    0 as academy_counts,
-                    'Establishment' as provider_category
-                from core.establishment e
-                left join ref.establishment_type et
-                    on et.establishment_type_id = e.establishment_type_id
-                left join core.site s
-                    on s.establishment_id = e.establishment_id
-                left join core.establishment_authority ea
-                    on ea.establishment_id = e.establishment_id
-                left join core.establishment_identifier ei
-                    on ei.establishment_id = e.establishment_id
-                   and ei.identifier_type = 'UKPRN'
-                left join staging_table st
-                    on st.urn = e.urn
-                left join (
-                    select establishment_id,
-                           string_agg(group_id::text, ',') as group_ids
-                    from core.establishment_group_membership
-                    group by establishment_id
-                ) egm
-                    on egm.establishment_id = e.establishment_id
-                union all
-                -- Groups
-                select
-                    g.code as provider_id,
-                    g.name as provider_name,
-                    null as la_estab,
-                    null as dfe_number,
-                    gt.name as provider_type_name,
-                    g.group_type_id as provider_type_id,
-                    null as provider_address,
-                    null as companies_house_number,
-                    null as uk_provider_reference_number,
-                    null as postcode,
-                    null as county,
-                    null as town,
-                    null as local_authority_name,
-                    concat('ID', g.code) as group_id,
-                    gen_random_uuid()::text as group_uid,
-                    coalesce(ac.number_of_academies, 0) as academy_counts,
-                    'Group' as provider_category
-                from core.group_record g
-                left join ref.group_type gt
-                    on gt.group_type_id = g.group_type_id
-                left join
-                (
-                    select
-                        group_id,
-                        count(distinct establishment_id) as number_of_academies
-                    from core.establishment_group_membership
-                    group by group_id
-                ) ac
-                    on ac.group_id = g.group_id
-                " }
+                SELECT DISTINCT
+                    ea.urn AS provider_id,
+                    ea.name AS provider_name,
 
+                    NULL AS la_estab,
+                    NULL AS dfe_number,
+
+                    ea.establishment_type_name AS provider_type_name,
+                    NULL::BIGINT AS provider_type_id,
+
+                    CONCAT_WS(', ',
+                        ea.address_line_1,
+                        ea.address_line_2,
+                        ea.town,
+                        ea.county,
+                        ea.postcode
+                    ) AS provider_address,
+
+                    NULL AS companies_house_number,
+                    NULL AS uk_provider_reference_number,
+
+                    ea.postcode,
+                    ea.county,
+                    ea.town,
+
+                    ea.local_authority_name,
+
+                    ea.group_code AS group_id,
+                    ea.group_uid::text AS group_uid,
+
+                    0 AS academy_counts,
+
+                    'Establishment' AS provider_category
+
+                FROM core.establishment_aggregate ea
+
+                UNION ALL
+
+                -- Groups
+                SELECT DISTINCT
+                    ga.group_id AS provider_id,
+                    ga.name AS provider_name,
+
+                    NULL AS la_estab,
+                    NULL AS dfe_number,
+
+                    ga.group_type_name AS provider_type_name,
+                    NULL::BIGINT AS provider_type_id,
+
+                    NULL AS provider_address,
+
+                    NULL AS companies_house_number,
+                    NULL AS uk_provider_reference_number,
+
+                    NULL AS postcode,
+                    NULL AS county,
+                    NULL AS town,
+                    NULL AS local_authority_name,
+
+                    ga.group_id,
+                    ga.group_uid::text,
+
+                    COALESCE(member_counts.academy_count, 0),
+
+                    'Group' AS provider_category
+
+                FROM core.group_aggregate ga
+
+                LEFT JOIN
+                (
+                    SELECT
+                        group_id,
+                        COUNT(*) AS academy_count
+                    FROM core.group_member_aggregate
+                    GROUP BY group_id
+                ) member_counts
+                    ON member_counts.group_id = ga.group_id;
+            "},
             //{ "Cleanup_Staging", @"DROP TABLE IF EXISTS staging_table;" }
         };
 }
