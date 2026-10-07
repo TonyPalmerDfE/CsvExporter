@@ -301,6 +301,7 @@ class Program
                 INSERT INTO core.establishment_aggregate
                 (
                     urn,
+                    ukprn,
                     name,
                     establishment_number,
 
@@ -344,6 +345,7 @@ class Program
                 )
                 SELECT DISTINCT
                     s.urn,
+                    NULLIF(TRIM(s.ukprn), ''),
                     s.establishmentname,
                     s.establishmentnumber,
 

@@ -28,6 +28,7 @@ CREATE TABLE core.search_aggregate (
     local_authority_name TEXT,
     group_id TEXT,
     group_uid TEXT,
+    status_code INTEGER,
     academy_counts INTEGER,
     provider_category TEXT
 );
@@ -41,13 +42,15 @@ CREATE TABLE core.establishment_aggregate
 
     -- identifiers
     urn TEXT NOT NULL UNIQUE,
+    ukprn TEXT,
 
     -- basic details
     name TEXT NOT NULL,
     establishment_number TEXT,
 
-    -- status
-    status_name TEXT,
+    -- active status
+    status_code INTEGER,
+    status_date DATE,    
 
     -- classification
     establishment_type_name TEXT,
@@ -55,10 +58,7 @@ CREATE TABLE core.establishment_aggregate
 
     -- lifecycle
     opened_date DATE,
-    opened_reason TEXT,
-
     closed_date DATE,
-    closed_reason TEXT,
 
     -- group membership
     group_uid BIGINT,
@@ -76,7 +76,7 @@ CREATE TABLE core.establishment_aggregate
     postcode TEXT,
 
     -- local authority
-    local_authority_code TEXT,
+    local_authority_code INTEGER,
     local_authority_name TEXT,
 
     -- admissions
@@ -144,7 +144,7 @@ CREATE TABLE core.group_aggregate
 
     -- contact
     website TEXT,
-    telephone_number TEXT
+    telephone_number TEXT,
 
     -- address
     site_name TEXT,
@@ -156,7 +156,7 @@ CREATE TABLE core.group_aggregate
 
     -- status
     group_status_label TEXT,
-    group_status_effective_date DATE,
+    group_status_effective_date DATE
 );
 
 -- ------------------------------------------------------------
