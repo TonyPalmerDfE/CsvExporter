@@ -222,30 +222,49 @@ class Program
                 (
                     group_id,
                     group_uid,
-                    name,
- 
+
                     ukprn,
                     companies_house_number,
- 
+
+                    name,
+                    group_type_name,
+
+                    headteacher_identifier,
+                    headteacher_name,
+
+                    religious_character,
+
+                    website,
+                    telephone_number,
+
                     site_name,
                     address_line_1,
                     address_line_2,
                     town,
                     county,
                     postcode,
- 
-                    group_type_name,
- 
+
                     group_status_label,
                     group_status_effective_date
                 )
                 SELECT
                     group_code,
+
                     ROW_NUMBER() OVER (ORDER BY group_code),
-                    group_name,
 
                     NULL AS ukprn,
                     NULL AS companies_house_number,
+
+                    group_name,
+                    group_type_name,
+
+                    NULL AS headteacher_identifier,
+                    NULL AS headteacher_name,
+
+                    NULL AS religious_character,
+
+                    NULL AS website,
+                    NULL AS telephone_number,
 
                     NULL AS site_name,
                     NULL AS address_line_1,
@@ -253,8 +272,6 @@ class Program
                     NULL AS town,
                     NULL AS county,
                     NULL AS postcode,
-
-                    group_type_name,
 
                     NULL AS group_status_label,
                     NULL::DATE AS group_status_effective_date
@@ -279,7 +296,7 @@ class Program
             "
         },
         {
-            "Core_EstablishmentAggregate", 
+            "Core_EstablishmentAggregate",
             @"
                 INSERT INTO core.establishment_aggregate
                 (
@@ -287,17 +304,15 @@ class Program
                     name,
                     establishment_number,
 
-                    status_name,
+                    status_code,
+                    status_date,
 
                     establishment_type_name,
 
                     education_phase_name,
 
                     opened_date,
-                    opened_reason,
-
                     closed_date,
-                    closed_reason,
 
                     group_code,
                     group_uid,
@@ -332,7 +347,15 @@ class Program
                     s.establishmentname,
                     s.establishmentnumber,
 
-                    s.establishmentstatus_name,
+                    CAST(NULLIF(s.establishmentstatus_code, '') AS INTEGER),
+
+                    CASE
+                        WHEN TRIM(s.opendate) ~ '^[0-9]'
+                        THEN TO_DATE(
+                            LEFT(REPLACE(REPLACE(TRIM(s.opendate), '/', '-'), '.', '-'), 10),
+                            'DD-MM-YYYY')
+                        ELSE NULL
+                    END,
 
                     s.typeofestablishment_name,
 
@@ -346,8 +369,6 @@ class Program
                         ELSE NULL
                     END,
 
-                    s.reasonestablishmentopened_name,
-
                     CASE
                         WHEN TRIM(s.closedate) ~ '^[0-9]'
                         THEN TO_DATE(
@@ -355,8 +376,6 @@ class Program
                             'DD-MM-YYYY')
                         ELSE NULL
                     END,
-
-                    s.reasonestablishmentclosed_name,
 
                     COALESCE(
                         s.trusts_code,
@@ -385,7 +404,7 @@ class Program
                     s.county_name,
                     s.postcode,
 
-                    s.la_code,
+                    CAST(NULLIF(s.la_code, '') AS INTEGER),
                     s.la_name,
 
                     CAST(NULLIF(s.statutorylowage, '') AS INTEGER),
@@ -406,17 +425,20 @@ class Program
                     TRIM(CONCAT_WS(
                         ' ',
                         s.headfirstname,
-                        s.headlastname)),
+                        s.headlastname
+                    )),
 
                     s.schoolwebsite,
                     s.telephonenum
 
                 FROM staging_table s
+
                 LEFT JOIN core.group_aggregate ga
                     ON ga.group_id = COALESCE(
                         s.trusts_code,
                         s.federations_code
                     )
+
                 WHERE s.urn IS NOT NULL;
             "
         },
@@ -491,6 +513,7 @@ class Program
                     local_authority_name,
                     group_id,
                     group_uid,
+                    status_code,
                     academy_counts,
                     provider_category
                 )
@@ -524,6 +547,7 @@ class Program
 
                     ea.group_code AS group_id,
                     ea.group_uid::text AS group_uid,
+                    ea.status_code,
 
                     0 AS academy_counts,
 
@@ -556,6 +580,8 @@ class Program
 
                     ga.group_id,
                     ga.group_uid::text,
+
+                    NULL::INTEGER AS status_code,
 
                     COALESCE(member_counts.academy_count, 0),
 
