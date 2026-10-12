@@ -513,6 +513,7 @@ class Program
                     county,
                     town,
                     local_authority_name,
+                    group_name,
                     group_id,
                     group_uid,
                     status_code,
@@ -546,7 +547,8 @@ class Program
                     ea.town,
 
                     ea.local_authority_name,
-
+                    
+                    ea.group_name AS group_name,
                     ea.group_code AS group_id,
                     ea.group_uid::text AS group_uid,
                     ea.status_code,
@@ -580,6 +582,7 @@ class Program
                     NULL AS town,
                     NULL AS local_authority_name,
 
+                    ga.name AS group_name,
                     ga.group_id,
                     ga.group_uid::text,
 
