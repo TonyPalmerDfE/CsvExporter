@@ -10,7 +10,7 @@ namespace CsvExporter;
 class Program
 {
     private const string Host = "localhost";
-    private const int Port = 5432;
+    private const int Port = 5434;
     private const string Username = "postgres";
     private const string Password = "postgres";
     private const string DatabaseName = "eprdat_development";
@@ -589,7 +589,7 @@ class Program
                     ga.group_uid::text,
 
                     NULL::INTEGER AS establishment_status,
-                    ga.status_code AS group_status,
+                    NULL::INTEGER AS establishment_status,
 
                     COALESCE(member_counts.academy_count, 0),
 
