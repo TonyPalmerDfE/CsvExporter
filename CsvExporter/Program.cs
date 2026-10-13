@@ -10,7 +10,7 @@ namespace CsvExporter;
 class Program
 {
     private const string Host = "localhost";
-    private const int Port = 5434;
+    private const int Port = 5432;
     private const string Username = "postgres";
     private const string Password = "postgres";
     private const string DatabaseName = "eprdat_development";
