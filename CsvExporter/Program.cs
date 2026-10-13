@@ -516,7 +516,8 @@ class Program
                     group_name,
                     group_id,
                     group_uid,
-                    status_code,
+                establishment_status,
+                    group_status,
                     academy_counts,
                     provider_category
                 )
@@ -551,7 +552,8 @@ class Program
                     ea.group_name AS group_name,
                     ea.group_code AS group_id,
                     ea.group_uid::text AS group_uid,
-                    ea.status_code,
+                    ea.status_code as establishment_status,
+                    NULL::INTEGER as group_status,
 
                     0 AS academy_counts,
 
@@ -586,7 +588,8 @@ class Program
                     ga.group_id,
                     ga.group_uid::text,
 
-                    NULL::INTEGER AS status_code,
+                    NULL::INTEGER AS establishment_status,
+                    ga.status_code AS group_status,
 
                     COALESCE(member_counts.academy_count, 0),
 
