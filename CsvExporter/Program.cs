@@ -444,7 +444,7 @@ class Program
                 WHERE s.urn IS NOT NULL;
             "
         },
-        { 
+        {
             "Core_EstablishmentGovernorAggregate",
             @"
                 INSERT INTO core.establishment_governor_aggregate
@@ -515,10 +515,12 @@ class Program
                     group_name,
                     group_id,
                     group_uid,
-                establishment_status,
+                    establishment_status,
                     group_status,
                     academy_counts,
-                    provider_category,
+                    provider_category,                    
+                    opened_date,
+                    closed_date,
                     sen
                 )
                 -- Establishments
@@ -526,8 +528,22 @@ class Program
                     ea.urn AS provider_id,
                     ea.name AS provider_name,
 
-                    NULL AS la_estab,
-                    NULL AS dfe_number,
+                    CASE
+                        WHEN ea.local_authority_code BETWEEN 0 AND 999
+                        AND TRIM(ea.establishment_number) ~ '^[0-9]{1,4}$'
+                        THEN LPAD(ea.local_authority_code::text, 3, '0') 
+                            || LPAD(ea.establishment_number, 4, '0')   
+                        ELSE NULL
+                    END AS la_estab,
+
+                    CASE
+                        WHEN ea.local_authority_code BETWEEN 0 AND 999
+                        AND TRIM(ea.establishment_number) ~ '^[0-9]{1,4}$'
+                        THEN LPAD(ea.local_authority_code::text, 3, '0') 
+                            || '/' 
+                            || LPAD(ea.establishment_number, 4, '0')   
+                        ELSE NULL
+                    END AS dfe_number,
 
                     ea.establishment_type_name AS provider_type_name,
                     CONCAT_WS(', ',
@@ -538,8 +554,8 @@ class Program
                         ea.postcode
                     ) AS provider_address,
 
-                    NULL AS companies_house_number,
-                    NULL AS uk_provider_reference_number,
+                    NULLIF(TRIM(s.chnumber), '') AS companies_house_number,
+                    ea.ukprn AS uk_provider_reference_number,
 
                     ea.postcode,
                     ea.county,
@@ -554,8 +570,10 @@ class Program
                     NULL::INTEGER as group_status,
 
                     0 AS academy_counts,
+                    'Establishment' AS provider_category,                    
+                    ea.opened_date as opened_date,
+                    ea.closed_date as closed_date,
 
-                    'Establishment' AS provider_category,
                     ARRAY_REMOVE(
                     ARRAY[
                         NULLIF(TRIM(s.sen1_name), ''),
@@ -607,10 +625,13 @@ class Program
 
                     NULL::INTEGER AS establishment_status,
                     NULL::INTEGER AS group_status,
-
-                    COALESCE(member_counts.academy_count, 0),
+                    COALESCE(member_counts.academy_count, 0) AS academy_counts,
 
                     'Group' AS provider_category,
+
+                    NULL::DATE AS opened_date,
+                    NULL::DATE AS closed_date,
+
                     ARRAY[]::TEXT[] AS sen
 
                 FROM core.group_aggregate ga
