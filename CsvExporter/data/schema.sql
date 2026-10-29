@@ -18,7 +18,6 @@ CREATE TABLE core.search_aggregate (
     la_estab TEXT,
     dfe_number TEXT,
     provider_type_name TEXT,
-    provider_type_id BIGINT,
     provider_address TEXT,
     companies_house_number TEXT,
     uk_provider_reference_number TEXT,
@@ -32,7 +31,10 @@ CREATE TABLE core.search_aggregate (
     group_uid TEXT,
     group_status INTEGER,
     academy_counts INTEGER,
-    provider_category TEXT
+    opened_date DATE,
+    closed_date DATE,
+    provider_category TEXT,
+    sen TEXT[]
 );
 
 -- ------------------------------------------------------------
@@ -229,3 +231,5 @@ CREATE INDEX idx_search_provider_group_uid
     ON core.search_aggregate (group_uid);
 CREATE INDEX idx_search_provider_name_trgm 
     ON core.search_aggregate USING gin (provider_name gin_trgm_ops);
+CREATE INDEX idx_search_provider_sen
+    ON core.search_aggregate USING gin (sen);
