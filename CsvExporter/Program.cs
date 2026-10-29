@@ -518,9 +518,10 @@ class Program
                     establishment_status,
                     group_status,
                     academy_counts,
+                    provider_category,                    
                     opened_date,
                     closed_date,
-                    provider_category
+                    sen
                 )
                 -- Establishments
                 SELECT DISTINCT
@@ -545,7 +546,6 @@ class Program
                     END AS dfe_number,
 
                     ea.establishment_type_name AS provider_type_name,
-
                     CONCAT_WS(', ',
                         ea.address_line_1,
                         ea.address_line_2,
@@ -570,15 +570,33 @@ class Program
                     NULL::INTEGER as group_status,
 
                     0 AS academy_counts,
+                    'Establishment' AS provider_category,                    
                     ea.opened_date as opened_date,
                     ea.closed_date as closed_date,
 
-                    'Establishment' AS provider_category
+                    ARRAY_REMOVE(
+                    ARRAY[
+                        NULLIF(TRIM(s.sen1_name), ''),
+                        NULLIF(TRIM(s.sen2_name), ''),
+                        NULLIF(TRIM(s.sen3_name), ''),
+                        NULLIF(TRIM(s.sen4_name), ''),
+                        NULLIF(TRIM(s.sen5_name), ''),
+                        NULLIF(TRIM(s.sen6_name), ''),
+                        NULLIF(TRIM(s.sen7_name), ''),
+                        NULLIF(TRIM(s.sen8_name), ''),
+                        NULLIF(TRIM(s.sen9_name), ''),
+                        NULLIF(TRIM(s.sen10_name), ''),
+                        NULLIF(TRIM(s.sen11_name), ''),
+                        NULLIF(TRIM(s.sen12_name), ''),
+                        NULLIF(TRIM(s.sen13_name), '')
+                    ],
+                    NULL
+                ) AS sen
 
                 FROM core.establishment_aggregate ea
+                
                 LEFT JOIN staging_table s
                     ON s.urn = ea.urn
-
                 UNION ALL
 
                 -- Groups
@@ -606,14 +624,15 @@ class Program
                     ga.group_uid::text,
 
                     NULL::INTEGER AS establishment_status,
-                    NULL::INTEGER AS establishment_status,
+                    NULL::INTEGER AS group_status,
+                    COALESCE(member_counts.academy_count, 0) AS academy_counts,
 
-                    COALESCE(member_counts.academy_count, 0),
-                    
-                    NULL::DATE AS opened_date,  
+                    'Group' AS provider_category,
+
+                    NULL::DATE AS opened_date,
                     NULL::DATE AS closed_date,
 
-                    'Group' AS provider_category
+                    ARRAY[]::TEXT[] AS sen
 
                 FROM core.group_aggregate ga
 
