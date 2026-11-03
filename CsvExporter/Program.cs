@@ -10,7 +10,7 @@ namespace CsvExporter;
 class Program
 {
     private const string Host = "localhost";
-    private const int Port = 5440;
+    private const int Port = 5432;
     private const string Username = "postgres";
     private const string Password = "postgres";
     private const string DatabaseName = "eprdat_development";
@@ -669,7 +669,7 @@ class Program
             COALESCE(
                 NULLIF(
                     TRIM(s.officialsixthform_name), ''),
-                    'Not recorded') 
+                    'Not recorded')
                 AS sixth_form,
 
             NULLIF(TRIM(s.section41approved_name), '')
@@ -679,7 +679,7 @@ class Program
                 NULLIF(
                     TRIM(s.specialclasses_name), ''),
                     'Not recorded') 
-                AS special_class,
+                AS special_class
 
         FROM core.establishment_aggregate ea
 
