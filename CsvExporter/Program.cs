@@ -590,16 +590,35 @@ class Program
 
             NULLIF(TRIM(s.phaseofeducation_name), '') AS education_phase,
 
-            NULLIF(TRIM(s.furthereducationtype_name), '')
+            COALESCE(
+                NULLIF(
+                    TRIM(s.furthereducationtype_name), ''),
+                    'Not recorded') 
                 AS further_education_type,
 
-            NULLIF(TRIM(s.admissionspolicy_name), '') AS admissions,
+            COALESCE(
+                NULLIF(
+                    TRIM(s.admissionspolicy_name), ''),
+                    'Not recorded') 
+                AS admissions,
 
-            NULLIF(TRIM(s.boardingestablishment_name), '') AS boarding,
+            COALESCE(
+                NULLIF(
+                    TRIM(s.boardingestablishment_name), ''),
+                    'Not recorded') 
+                AS boarding,
 
-            NULLIF(TRIM(s.nurseryprovision_name), '') AS nursery,
+            COALESCE(
+                NULLIF(
+                    TRIM(s.nurseryprovision_name), ''),
+                    'Not recorded') 
+                AS nursery,
 
-            NULLIF(TRIM(s.gender_name), '') AS gender,
+            COALESCE(
+                NULLIF(
+                    TRIM(s.gender_name), ''),
+                    'Not recorded') 
+                AS gender,
 
             ea.statutory_low_age AS age_low,
             ea.statutory_high_age AS age_high,
@@ -647,14 +666,20 @@ class Program
             NULLIF(TRIM(s.religiousethos_name), '')
                 AS religious_ethos,
 
-            NULLIF(TRIM(s.officialsixthform_name), '')
+            COALESCE(
+                NULLIF(
+                    TRIM(s.officialsixthform_name), ''),
+                    'Not recorded') 
                 AS sixth_form,
 
             NULLIF(TRIM(s.section41approved_name), '')
                 AS section_41,
 
-            NULLIF(TRIM(s.specialclasses_name), '')
-                AS special_class
+            COALESCE(
+                NULLIF(
+                    TRIM(s.specialclasses_name), ''),
+                    'Not recorded') 
+                AS special_class,
 
         FROM core.establishment_aggregate ea
 
