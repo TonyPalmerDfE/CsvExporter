@@ -495,157 +495,247 @@ class Program
                 WHERE s.federations_code IS NOT NULL;
             "
         },
-        {
-            "Core_SearchAggregate",
-            @"
-                INSERT INTO core.search_aggregate
-                (
-                    provider_id,
-                    provider_name,
-                    la_estab,
-                    dfe_number,
-                    provider_type_name,
-                    provider_address,
-                    companies_house_number,
-                    uk_provider_reference_number,
-                    postcode,
-                    county,
-                    town,
-                    local_authority_name,
-                    group_name,
-                    group_id,
-                    group_uid,
-                    establishment_status,
-                    group_status,
-                    academy_counts,
-                    provider_category,                    
-                    opened_date,
-                    closed_date,
-                    sen
-                )
-                -- Establishments
-                SELECT DISTINCT
-                    ea.urn AS provider_id,
-                    ea.name AS provider_name,
+{
+    "Core_SearchAggregate",
+    @"
+        INSERT INTO core.search_aggregate
+        (
+            provider_id,
+            provider_name,
+            la_estab,
+            dfe_number,
+            provider_type_name,
+            provider_address,
+            companies_house_number,
+            uk_provider_reference_number,
+            postcode,
+            county,
+            town,
+            local_authority_name,
+            status_code,
+            status_name,
+            education_phase,
+            further_education_type,
+            admissions,
+            boarding,
+            nursery,
+            gender,
+            age_low,
+            age_high,
+            group_name,
+            group_id,
+            group_uid,
+            group_status,
+            group_type,
+            academy_counts,
+            opened_date,
+            closed_date,
+            provider_category,
+            sen,
+            diocese,
+            religious_character,
+            religious_ethos,
+            sixth_form,
+            section_41,
+            special_class
+        )
 
-                    CASE
-                        WHEN ea.local_authority_code BETWEEN 0 AND 999
-                        AND TRIM(ea.establishment_number) ~ '^[0-9]{1,4}$'
-                        THEN LPAD(ea.local_authority_code::text, 3, '0') 
-                            || LPAD(ea.establishment_number, 4, '0')   
-                        ELSE NULL
-                    END AS la_estab,
+        -- Establishments
+        SELECT DISTINCT
+            ea.urn AS provider_id,
+            ea.name AS provider_name,
 
-                    CASE
-                        WHEN ea.local_authority_code BETWEEN 0 AND 999
-                        AND TRIM(ea.establishment_number) ~ '^[0-9]{1,4}$'
-                        THEN LPAD(ea.local_authority_code::text, 3, '0') 
-                            || '/' 
-                            || LPAD(ea.establishment_number, 4, '0')   
-                        ELSE NULL
-                    END AS dfe_number,
+            CASE
+                WHEN ea.local_authority_code BETWEEN 0 AND 999
+                    AND TRIM(ea.establishment_number) ~ '^[0-9]{1,4}$'
+                THEN LPAD(ea.local_authority_code::TEXT, 3, '0')
+                    || LPAD(ea.establishment_number, 4, '0')
+                ELSE NULL
+            END AS la_estab,
 
-                    ea.establishment_type_name AS provider_type_name,
-                    CONCAT_WS(', ',
-                        ea.address_line_1,
-                        ea.address_line_2,
-                        ea.town,
-                        ea.county,
-                        ea.postcode
-                    ) AS provider_address,
+            CASE
+                WHEN ea.local_authority_code BETWEEN 0 AND 999
+                    AND TRIM(ea.establishment_number) ~ '^[0-9]{1,4}$'
+                THEN LPAD(ea.local_authority_code::TEXT, 3, '0')
+                    || '/'
+                    || LPAD(ea.establishment_number, 4, '0')
+                ELSE NULL
+            END AS dfe_number,
 
-                    NULLIF(TRIM(s.chnumber), '') AS companies_house_number,
-                    ea.ukprn AS uk_provider_reference_number,
+            ea.establishment_type_name AS provider_type_name,
 
-                    ea.postcode,
-                    ea.county,
-                    ea.town,
+            NULLIF(
+                CONCAT_WS(
+                    ', ',
+                    NULLIF(TRIM(ea.address_line_1), ''),
+                    NULLIF(TRIM(ea.address_line_2), ''),
+                    NULLIF(TRIM(ea.town), ''),
+                    NULLIF(TRIM(ea.county), ''),
+                    NULLIF(TRIM(ea.postcode), '')
+                ),
+                ''
+            ) AS provider_address,
 
-                    ea.local_authority_name,
-                    
-                    ea.group_name AS group_name,
-                    ea.group_code AS group_id,
-                    ea.group_uid::text AS group_uid,
-                    ea.status_code as establishment_status,
-                    NULL::INTEGER as group_status,
+            NULLIF(TRIM(s.chnumber), '') AS companies_house_number,
+            NULLIF(TRIM(ea.ukprn), '') AS uk_provider_reference_number,
 
-                    0 AS academy_counts,
-                    'Establishment' AS provider_category,                    
-                    ea.opened_date as opened_date,
-                    ea.closed_date as closed_date,
+            NULLIF(TRIM(ea.postcode), '') AS postcode,
+            NULLIF(TRIM(ea.county), '') AS county,
+            NULLIF(TRIM(ea.town), '') AS town,
+            NULLIF(TRIM(ea.local_authority_name), '') AS local_authority_name,
 
-                    ARRAY_REMOVE(
-                    ARRAY[
-                        NULLIF(TRIM(s.sen1_name), ''),
-                        NULLIF(TRIM(s.sen2_name), ''),
-                        NULLIF(TRIM(s.sen3_name), ''),
-                        NULLIF(TRIM(s.sen4_name), ''),
-                        NULLIF(TRIM(s.sen5_name), ''),
-                        NULLIF(TRIM(s.sen6_name), ''),
-                        NULLIF(TRIM(s.sen7_name), ''),
-                        NULLIF(TRIM(s.sen8_name), ''),
-                        NULLIF(TRIM(s.sen9_name), ''),
-                        NULLIF(TRIM(s.sen10_name), ''),
-                        NULLIF(TRIM(s.sen11_name), ''),
-                        NULLIF(TRIM(s.sen12_name), ''),
-                        NULLIF(TRIM(s.sen13_name), '')
-                    ],
-                    NULL
-                ) AS sen
+            ea.status_code AS status_code,
 
-                FROM core.establishment_aggregate ea
-                
-                LEFT JOIN staging_table s
-                    ON s.urn = ea.urn
-                UNION ALL
+            NULLIF(TRIM(s.establishmentstatus_name), '') AS status_name,
 
-                -- Groups
-                SELECT DISTINCT
-                    ga.group_id AS provider_id,
-                    ga.name AS provider_name,
+            NULLIF(TRIM(s.phaseofeducation_name), '') AS education_phase,
 
-                    NULL AS la_estab,
-                    NULL AS dfe_number,
+            NULLIF(TRIM(s.furthereducationtype_name), '')
+                AS further_education_type,
 
-                    ga.group_type_name AS provider_type_name,
+            NULLIF(TRIM(s.admissionspolicy_name), '') AS admissions,
 
-                    NULL AS provider_address,
+            NULLIF(TRIM(s.boarders_name), '') AS boarding,
 
-                    NULL AS companies_house_number,
-                    NULL AS uk_provider_reference_number,
+            NULLIF(TRIM(s.nurseryprovision_name), '') AS nursery,
 
-                    NULL AS postcode,
-                    NULL AS county,
-                    NULL AS town,
-                    NULL AS local_authority_name,
+            NULLIF(TRIM(s.gender_name), '') AS gender,
 
-                    ga.name AS group_name,
-                    ga.group_id,
-                    ga.group_uid::text,
+            ea.statutory_low_age AS age_low,
+            ea.statutory_high_age AS age_high,
 
-                    NULL::INTEGER AS establishment_status,
-                    NULL::INTEGER AS group_status,
-                    COALESCE(member_counts.academy_count, 0) AS academy_counts,
+            ea.group_name AS group_name,
+            ea.group_code AS group_id,
+            ea.group_uid::TEXT AS group_uid,
 
-                    'Group' AS provider_category,
+            NULL::INTEGER AS group_status,
 
-                    NULL::DATE AS opened_date,
-                    NULL::DATE AS closed_date,
+            ea.group_type_name AS group_type,
 
-                    ARRAY[]::TEXT[] AS sen
+            0 AS academy_counts,
 
-                FROM core.group_aggregate ga
+            ea.opened_date AS opened_date,
+            ea.closed_date AS closed_date,
 
-                LEFT JOIN
-                (
-                    SELECT
-                        group_id,
-                        COUNT(*) AS academy_count
-                    FROM core.group_member_aggregate
-                    GROUP BY group_id
-                ) member_counts
-                    ON member_counts.group_id = ga.group_id;
-            "},
+            'Establishment' AS provider_category,
+
+            ARRAY_REMOVE(
+                ARRAY[
+                    NULLIF(TRIM(s.sen1_name), ''),
+                    NULLIF(TRIM(s.sen2_name), ''),
+                    NULLIF(TRIM(s.sen3_name), ''),
+                    NULLIF(TRIM(s.sen4_name), ''),
+                    NULLIF(TRIM(s.sen5_name), ''),
+                    NULLIF(TRIM(s.sen6_name), ''),
+                    NULLIF(TRIM(s.sen7_name), ''),
+                    NULLIF(TRIM(s.sen8_name), ''),
+                    NULLIF(TRIM(s.sen9_name), ''),
+                    NULLIF(TRIM(s.sen10_name), ''),
+                    NULLIF(TRIM(s.sen11_name), ''),
+                    NULLIF(TRIM(s.sen12_name), ''),
+                    NULLIF(TRIM(s.sen13_name), '')
+                ],
+                NULL
+            ) AS sen,
+
+            NULLIF(TRIM(s.diocese_name), '')
+                AS diocese,
+
+            NULLIF(TRIM(s.religiouscharacter_name), '')
+                AS religious_character,
+
+            NULLIF(TRIM(s.religiousethos_name), '')
+                AS religious_ethos,
+
+            NULLIF(TRIM(s.officialsixthform_name), '')
+                AS sixth_form,
+
+            NULLIF(TRIM(s.section41approved_name), '')
+                AS section_41,
+
+            NULLIF(TRIM(s.specialclasses_name), '')
+                AS special_class
+
+        FROM core.establishment_aggregate ea
+
+        LEFT JOIN staging_table s
+            ON s.urn = ea.urn
+
+        UNION ALL
+
+        -- Groups
+        SELECT DISTINCT
+            ga.group_id AS provider_id,
+            ga.name AS provider_name,
+
+            NULL::TEXT AS la_estab,
+            NULL::TEXT AS dfe_number,
+
+            ga.group_type_name AS provider_type_name,
+
+            NULL::TEXT AS provider_address,
+
+            NULL::TEXT AS companies_house_number,
+            NULL::TEXT AS uk_provider_reference_number,
+
+            NULL::TEXT AS postcode,
+            NULL::TEXT AS county,
+            NULL::TEXT AS town,
+            NULL::TEXT AS local_authority_name,
+
+            NULL::INTEGER AS status_code,
+            NULL::TEXT AS status_name,
+
+            NULL::TEXT AS education_phase,
+            NULL::TEXT AS further_education_type,
+            NULL::TEXT AS admissions,
+            NULL::TEXT AS boarding,
+            NULL::TEXT AS nursery,
+            NULL::TEXT AS gender,
+
+            NULL::INTEGER AS age_low,
+            NULL::INTEGER AS age_high,
+
+            ga.name AS group_name,
+            ga.group_id AS group_id,
+            ga.group_uid::TEXT AS group_uid,
+
+            NULL::INTEGER AS group_status,
+
+            ga.group_type_name AS group_type,
+
+            COALESCE(
+                member_counts.academy_count,
+                0
+            ) AS academy_counts,
+
+            NULL::DATE AS opened_date,
+            NULL::DATE AS closed_date,
+
+            'Group' AS provider_category,
+
+            ARRAY[]::TEXT[] AS sen,
+
+            NULL::TEXT AS diocese,
+            NULL::TEXT AS religious_character,
+            NULL::TEXT AS religious_ethos,
+            NULL::TEXT AS sixth_form,
+            NULL::TEXT AS section_41,
+            NULL::TEXT AS special_class
+
+        FROM core.group_aggregate ga
+
+        LEFT JOIN
+        (
+            SELECT
+                group_id,
+                COUNT(*)::INTEGER AS academy_count
+            FROM core.group_member_aggregate
+            GROUP BY group_id
+        ) member_counts
+            ON member_counts.group_id = ga.group_id;
+    "
+},
             //{ "Cleanup_Staging", @"DROP TABLE IF EXISTS staging_table;" }
         };
 }
