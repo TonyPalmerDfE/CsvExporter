@@ -10,7 +10,7 @@ namespace CsvExporter;
 class Program
 {
     private const string Host = "localhost";
-    private const int Port = 5432;
+    private const int Port = 5440;
     private const string Username = "postgres";
     private const string Password = "postgres";
     private const string DatabaseName = "eprdat_development";
@@ -595,7 +595,7 @@ class Program
 
             NULLIF(TRIM(s.admissionspolicy_name), '') AS admissions,
 
-            NULLIF(TRIM(s.boarders_name), '') AS boarding,
+            NULLIF(TRIM(s.boardingestablishment_name), '') AS boarding,
 
             NULLIF(TRIM(s.nurseryprovision_name), '') AS nursery,
 
