@@ -334,6 +334,14 @@ class Program
                     statutory_high_age,
 
                     religious_character,
+                    religious_ethos,
+                    diocese,
+                    sen,
+                    number_of_pupils,
+                    number_of_boys,
+                    number_of_girls,
+                    fsm_percentage,
+                    fsm_number,
 
                     ofsted_inspection_date,
                     ofsted_report_url,
@@ -413,6 +421,31 @@ class Program
                     CAST(NULLIF(s.statutoryhighage, '') AS INTEGER),
 
                     s.religiouscharacter_name,
+                    NULLIF(TRIM(s.religiousethos_name), ''),
+                    NULLIF(TRIM(s.diocese_name), ''),
+                    ARRAY_REMOVE(
+                        ARRAY[
+                            NULLIF(TRIM(s.sen1_name), ''),
+                            NULLIF(TRIM(s.sen2_name), ''),
+                            NULLIF(TRIM(s.sen3_name), ''),
+                            NULLIF(TRIM(s.sen4_name), ''),
+                            NULLIF(TRIM(s.sen5_name), ''),
+                            NULLIF(TRIM(s.sen6_name), ''),
+                            NULLIF(TRIM(s.sen7_name), ''),
+                            NULLIF(TRIM(s.sen8_name), ''),
+                            NULLIF(TRIM(s.sen9_name), ''),
+                            NULLIF(TRIM(s.sen10_name), ''),
+                            NULLIF(TRIM(s.sen11_name), ''),
+                            NULLIF(TRIM(s.sen12_name), ''),
+                            NULLIF(TRIM(s.sen13_name), '')
+                        ],
+                        NULL
+                    ),
+                    NULLIF(TRIM(s.numberofpupils), '')::INTEGER,
+                    NULLIF(TRIM(s.numberofboys), '')::INTEGER,
+                    NULLIF(TRIM(s.numberofgirls), '')::INTEGER,
+                    NULLIF(TRIM(s.percentagefsm), '')::NUMERIC,
+                    NULLIF(TRIM(s.fsm), '')::INTEGER,
 
                     CASE
                         WHEN TRIM(s.dateoflastinspectionvisit) ~ '^[0-9]'

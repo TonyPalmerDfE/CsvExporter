@@ -106,6 +106,14 @@ CREATE TABLE core.establishment_aggregate
     -- characteristics
     gender TEXT,
     religious_character TEXT,
+    religious_ethos TEXT,
+    diocese TEXT,
+    sen TEXT[],
+    number_of_pupils INTEGER,
+    number_of_boys INTEGER,
+    number_of_girls INTEGER,
+    fsm_percentage NUMERIC,
+    fsm_number INTEGER,
 
     -- inspection
     ofsted_inspection_date DATE,
@@ -114,9 +122,6 @@ CREATE TABLE core.establishment_aggregate
     -- leadership
     headteacher_identifier TEXT,
     headteacher_name TEXT,
-
-    -- SEND
-    sen_provision TEXT,
 
     -- contact
     website TEXT,
