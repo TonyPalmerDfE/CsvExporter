@@ -336,7 +336,10 @@ class Program
                     religious_character,
                     religious_ethos,
                     diocese,
+
+                    sen_provision,
                     sen,
+        
                     number_of_pupils,
                     number_of_boys,
                     number_of_girls,
@@ -347,7 +350,7 @@ class Program
                     ofsted_report_url,
 
                     headteacher_name,
-
+                    
                     website,
                     telephone_number
                 )
@@ -423,6 +426,7 @@ class Program
                     s.religiouscharacter_name,
                     NULLIF(TRIM(s.religiousethos_name), ''),
                     NULLIF(TRIM(s.diocese_name), ''),
+                    s.typeofresourcedprovision_name,
                     ARRAY_REMOVE(
                         ARRAY[
                             NULLIF(TRIM(s.sen1_name), ''),
