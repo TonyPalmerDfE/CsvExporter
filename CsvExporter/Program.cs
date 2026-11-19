@@ -330,6 +330,7 @@ class Program
                     local_authority_code,
                     local_authority_name,
 
+                    gender,
                     statutory_low_age,
                     statutory_high_age,
 
@@ -420,6 +421,7 @@ class Program
                     CAST(NULLIF(s.la_code, '') AS INTEGER),
                     s.la_name,
 
+                    s.gender_name,
                     CAST(NULLIF(s.statutorylowage, '') AS INTEGER),
                     CAST(NULLIF(s.statutoryhighage, '') AS INTEGER),
 
