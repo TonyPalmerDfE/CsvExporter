@@ -245,7 +245,9 @@ class Program
                     postcode,
 
                     group_status_label,
-                    group_status_effective_date
+                    group_status_effective_date,
+                    opened_date,
+                    closed_date
                 )
                 SELECT
                     group_code,
@@ -274,7 +276,9 @@ class Program
                     NULL AS postcode,
 
                     NULL AS group_status_label,
-                    NULL::DATE AS group_status_effective_date
+                    NULL::DATE AS group_status_effective_date,
+                    NULL::DATE AS opened_date,
+                    NULL::DATE AS closed_date
                 FROM
                 (
                     SELECT DISTINCT
