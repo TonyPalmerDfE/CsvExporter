@@ -16,7 +16,8 @@ class Program
     private const string DatabaseName = "eprdat_development";
 
     private static int? MaxRows = null;
-    private const string CsvFilePath = @"data/edubasealldata.csv";
+    private const string EstablishmentsCsvFilePath = @"data/edubaseallestablishments.csv";
+    private const string GroupsCsvFilePath = @"data/edubaseallgroups.csv";
     private const string SchemaFilePath = @"data/schema.sql";
 
     private static readonly string AdminConnectionString =
@@ -29,9 +30,16 @@ class Program
     {
         Console.WriteLine("Starting Edubase ELT Pipeline...");
 
-        if (!File.Exists(CsvFilePath))
+        if (!File.Exists(EstablishmentsCsvFilePath))
         {
-            Console.WriteLine($"Error: CSV File '{CsvFilePath}' not found.");
+            Console.WriteLine($"Error: CSV File '{EstablishmentsCsvFilePath}' not found.");
+            return;
+        }
+
+        if (!File.Exists(GroupsCsvFilePath))
+        {
+            Console.WriteLine(
+                $"Error: Groups CSV file '{GroupsCsvFilePath}' not found.");
             return;
         }
 
@@ -43,24 +51,60 @@ class Program
 
         try
         {
-            // STEP A: Ensure Database exists, WIPE it clean, and recreate Schema
+            // STEP A: Ensure database exists, wipe it clean, and recreate schema
             await EnsureDatabaseAndSchemaExist();
 
-            // STEP B: Run the ELT Pipeline
-            await using var conn = new NpgsqlConnection(TargetConnectionString);
+            // STEP B: Run the ELT pipeline
+            await using NpgsqlConnection conn =
+                new(TargetConnectionString);
+
             await conn.OpenAsync();
 
-            Console.WriteLine("Reading CSV headers and generating Staging Table...");
-            var headers = GetSanitizedHeaders(CsvFilePath);
-            await RecreateStagingTable(conn, headers);
+            Console.WriteLine(
+                "Reading establishments CSV headers and generating staging table...");
 
-            Console.WriteLine("Streaming data via NpgsqlBinaryImporter (Bulk Copy)...");
-            await BulkLoadCsvToStaging(conn, CsvFilePath, headers);
+            string[] establishmentHeaders =
+                GetSanitizedHeaders(EstablishmentsCsvFilePath);
 
-            Console.WriteLine("Executing SQL Mappings to normalized tables...");
+            await RecreateStagingTable(
+                conn,
+                "staging_establishments",
+                establishmentHeaders);
+
+            Console.WriteLine(
+                "Streaming establishments via NpgsqlBinaryImporter...");
+
+            await BulkLoadCsvToStaging(
+                conn,
+                "staging_establishments",
+                EstablishmentsCsvFilePath,
+                establishmentHeaders);
+
+            Console.WriteLine(
+                "Reading groups CSV headers and generating staging table...");
+
+            string[] groupHeaders =
+                GetSanitizedHeaders(GroupsCsvFilePath);
+
+            await RecreateStagingTable(
+                conn,
+                "staging_groups",
+                groupHeaders);
+
+            Console.WriteLine(
+                "Streaming groups via NpgsqlBinaryImporter...");
+
+            await BulkLoadCsvToStaging(
+                conn,
+                "staging_groups",
+                GroupsCsvFilePath,
+                groupHeaders);
+
+            Console.WriteLine("Executing SQL mappings to normalized tables...");
             await ExecuteMappingScripts(conn);
 
-            Console.WriteLine("Pipeline completed successfully! Database is seeded.");
+            Console.WriteLine(
+                "Pipeline completed successfully! Database is seeded.");
         }
         catch (Exception ex)
         {
@@ -103,11 +147,12 @@ class Program
         {
             await targetConn.OpenAsync();
 
-            var wipeSql = @"
+            string wipeSql = @"
                 DROP SCHEMA IF EXISTS ref CASCADE;
                 DROP SCHEMA IF EXISTS core CASCADE;
-                DROP TABLE IF EXISTS staging_table;
-                ";
+                DROP TABLE IF EXISTS staging_establishments;
+                DROP TABLE IF EXISTS staging_groups;
+            ";
 
             await using var wipeCmd = new NpgsqlCommand(wipeSql, targetConn);
             await wipeCmd.ExecuteNonQueryAsync();
@@ -134,62 +179,97 @@ class Program
             .ToArray();
     }
 
-    static async Task RecreateStagingTable(NpgsqlConnection conn, string[] headers)
+    static async Task RecreateStagingTable(
+        NpgsqlConnection conn,
+        string tableName,
+        string[] headers)
     {
-        var createTableSql = new StringBuilder();
-        createTableSql.AppendLine("DROP TABLE IF EXISTS staging_table;");
-        createTableSql.AppendLine("CREATE TABLE staging_table (");
+        StringBuilder createTableSql = new();
 
-        var columnDefinitions = headers.Select(h => $"\"{h}\" TEXT").ToList();
-        createTableSql.AppendLine(string.Join(",\n    ", columnDefinitions));
+        createTableSql.AppendLine($"DROP TABLE IF EXISTS \"{tableName}\";");
+        createTableSql.AppendLine($"CREATE TABLE \"{tableName}\" (");
+
+        List<string> columnDefinitions = [.. headers.Select(header => $"\"{header}\" TEXT")];
+
+        createTableSql.AppendLine(
+            string.Join(",\n    ", columnDefinitions));
+
         createTableSql.AppendLine(");");
 
-        await using var cmd = new NpgsqlCommand(createTableSql.ToString(), conn);
+        await using NpgsqlCommand cmd =
+            new(createTableSql.ToString(), conn);
+
         await cmd.ExecuteNonQueryAsync();
     }
 
-    static async Task BulkLoadCsvToStaging(NpgsqlConnection conn, string filePath, string[] headers)
+    static async Task BulkLoadCsvToStaging(
+        NpgsqlConnection conn,
+        string tableName,
+        string filePath,
+        string[] headers)
     {
-        var columns = string.Join(", ", headers.Select(h => $"\"{h}\""));
-        string copyCmd = $"COPY staging_table ({columns}) FROM STDIN (FORMAT BINARY)";
+        string columns =
+            string.Join(
+                ", ",
+                headers.Select(header => $"\"{header}\""));
 
-        var config = new CsvConfiguration(CultureInfo.InvariantCulture) { HasHeaderRecord = true };
-        using var reader = new StreamReader(filePath, Encoding.GetEncoding("latin1"));
-        using var csv = new CsvReader(reader, config);
+        string copyCommand =
+            $"COPY \"{tableName}\" ({columns}) FROM STDIN (FORMAT BINARY)";
+
+        CsvConfiguration config = new(CultureInfo.InvariantCulture)
+        {
+            HasHeaderRecord = true
+        };
+
+        using StreamReader reader =
+            new(filePath, Encoding.GetEncoding("latin1"));
+
+        using CsvReader csv =
+            new(reader, config);
 
         await csv.ReadAsync();
         csv.ReadHeader();
 
-        await using var writer = await conn.BeginBinaryImportAsync(copyCmd);
+        await using NpgsqlBinaryImporter writer =
+            await conn.BeginBinaryImportAsync(copyCommand);
 
         Console.WriteLine(
             MaxRows.HasValue
-                ? $"Loading up to {MaxRows:N0} rows from CSV..."
-                : "Loading all rows from CSV...");
+                ? $"Loading up to {MaxRows:N0} rows from '{filePath}'..."
+                : $"Loading all rows from '{filePath}'...");
 
         int rowCount = 0;
+
         while (await csv.ReadAsync())
         {
             if (MaxRows.HasValue && rowCount >= MaxRows.Value)
+            {
                 break;
+            }
 
             await writer.StartRowAsync();
 
             for (int i = 0; i < headers.Length; i++)
             {
-                var value = csv.GetField(i);
+                string? value = csv.GetField(i);
 
                 if (string.IsNullOrWhiteSpace(value))
+                {
                     await writer.WriteNullAsync();
+                }
                 else
+                {
                     await writer.WriteAsync(value);
+                }
             }
 
             rowCount++;
         }
 
         await writer.CompleteAsync();
-        Console.WriteLine($"Successfully loaded {rowCount} rows into staging.");
+
+        Console.WriteLine(
+            $"Successfully loaded {rowCount} rows into '{tableName}'.");
     }
 
     static async Task ExecuteMappingScripts(NpgsqlConnection conn)
@@ -245,21 +325,45 @@ class Program
                     postcode,
 
                     group_status_label,
-                    group_status_effective_date
+                    group_status_effective_date,
+
+                    opened_date,
+                    closed_date
                 )
                 SELECT
-                    group_code,
+                    NULLIF(TRIM(s.group_id), ''),
 
-                    ROW_NUMBER() OVER (ORDER BY group_code),
+                    NULLIF(TRIM(s.group_uid), '')::BIGINT,
 
-                    NULL AS ukprn,
-                    NULL AS companies_house_number,
+                    NULLIF(TRIM(s.ukprn), ''),
 
-                    group_name,
-                    group_type_name,
+                    NULLIF(
+                        TRIM(s.companies_house_number),
+                        ''
+                    ),
+
+                    NULLIF(TRIM(s.group_name), ''),
+
+                    NULLIF(TRIM(s.group_type), ''),
 
                     NULL AS headteacher_identifier,
-                    NULL AS headteacher_name,
+
+                    NULLIF(
+                        TRIM(
+                            CONCAT_WS(
+                                ' ',
+                                NULLIF(
+                                    TRIM(s.head_of_group_first_name),
+                                    ''
+                                ),
+                                NULLIF(
+                                    TRIM(s.head_of_group_last_name),
+                                    ''
+                                )
+                            )
+                        ),
+                        ''
+                    ) AS headteacher_name,
 
                     NULL AS religious_character,
 
@@ -267,32 +371,75 @@ class Program
                     NULL AS telephone_number,
 
                     NULL AS site_name,
-                    NULL AS address_line_1,
-                    NULL AS address_line_2,
-                    NULL AS town,
-                    NULL AS county,
-                    NULL AS postcode,
 
-                    NULL AS group_status_label,
-                    NULL::DATE AS group_status_effective_date
-                FROM
-                (
-                    SELECT DISTINCT
-                        s.trusts_code AS group_code,
-                        s.trusts_name AS group_name,
-                        'Multi-Academy Trust' AS group_type_name
-                    FROM staging_table s
-                    WHERE s.trusts_code IS NOT NULL
+                    NULLIF(
+                        TRIM(s.group_street),
+                        ''
+                    ) AS address_line_1,
 
-                    UNION
+                    NULLIF(
+                        CONCAT_WS(
+                            ', ',
+                            NULLIF(
+                                TRIM(s.group_locality),
+                                ''
+                            ),
+                            NULLIF(
+                                TRIM(s.group_address_3),
+                                ''
+                            )
+                        ),
+                        ''
+                    ) AS address_line_2,
 
-                    SELECT DISTINCT
-                        s.federations_code,
-                        s.federations_name,
-                        'Federation'
-                    FROM staging_table s
-                    WHERE s.federations_code IS NOT NULL
-                ) groups;
+                    NULLIF(
+                        TRIM(s.group_town),
+                        ''
+                    ) AS town,
+
+                    NULLIF(
+                        TRIM(s.group_county),
+                        ''
+                    ) AS county,
+
+                    NULLIF(
+                        TRIM(s.group_postcode),
+                        ''
+                    ) AS postcode,
+
+                    NULLIF(
+                        TRIM(s.group_status),
+                        ''
+                    ) AS group_status_label,
+
+                    NULL::DATE AS group_status_effective_date,
+
+                    CASE
+                        WHEN TRIM(s.open_date) ~
+                            '^[0-9]{1,2}/[0-9]{1,2}/[0-9]{4}$'
+                        THEN TO_DATE(
+                            TRIM(s.open_date),
+                            'DD/MM/YYYY'
+                        )
+                        ELSE NULL
+                    END AS opened_date,
+
+                    CASE
+                        WHEN TRIM(s.closed_date) ~
+                            '^[0-9]{1,2}/[0-9]{1,2}/[0-9]{4}$'
+                        THEN TO_DATE(
+                            TRIM(s.closed_date),
+                            'DD/MM/YYYY'
+                        )
+                        ELSE NULL
+                    END AS closed_date
+
+                FROM staging_groups s
+
+                WHERE NULLIF(
+                    TRIM(s.group_uid),
+                    ''
+                ) IS NOT NULL;
             "
         },
         {
@@ -391,24 +538,15 @@ class Program
                     END,
 
                     COALESCE(
-                        s.trusts_code,
-                        s.federations_code
-                    ),
+                        NULLIF(TRIM(s.trusts_code), ''),
+                        NULLIF(TRIM(s.federations_code), '')
+                    ) AS group_code,
 
                     ga.group_uid,
 
-                    COALESCE(
-                        s.trusts_name,
-                        s.federations_name
-                    ),
+                    ga.name AS group_name,
 
-                    CASE
-                        WHEN s.trusts_code IS NOT NULL
-                            THEN 'Multi-Academy Trust'
-                        WHEN s.federations_code IS NOT NULL
-                            THEN 'Federation'
-                        ELSE NULL
-                    END,
+                    ga.group_type_name,
 
                     s.sitename,
                     s.street,
@@ -470,14 +608,13 @@ class Program
                     s.schoolwebsite,
                     s.telephonenum
 
-                FROM staging_table s
+                FROM staging_establishments s
 
-                LEFT JOIN core.group_aggregate ga
-                    ON ga.group_id = COALESCE(
-                        s.trusts_code,
-                        s.federations_code
-                    )
-
+            LEFT JOIN core.group_aggregate ga
+                ON ga.group_uid::TEXT = COALESCE(
+                    NULLIF(TRIM(s.trusts_code), ''),
+                    NULLIF(TRIM(s.federations_code), '')
+                )
                 WHERE s.urn IS NOT NULL;
             "
         },
@@ -502,7 +639,7 @@ class Program
                         s.headfirstname,
                         s.headlastname)),
                     NULL::DATE
-                FROM staging_table s
+                FROM staging_establishments s
                 WHERE s.headfirstname IS NOT NULL
                 OR s.headlastname IS NOT NULL;
             "},
@@ -511,28 +648,54 @@ class Program
             @"
                 INSERT INTO core.group_member_aggregate
                 (
-                    group_id,
+                    group_uid,
                     establishment_urn,
                     establishment_name
                 )
                 SELECT DISTINCT
-                    s.trusts_code,
+                    s.trusts_code::BIGINT,
                     s.urn,
                     s.establishmentname
-                FROM staging_table s
+                FROM staging_establishments s
                 WHERE s.trusts_code IS NOT NULL
 
                 UNION
 
                 SELECT DISTINCT
-                    s.federations_code,
+                    s.federations_code::BIGINT,
                     s.urn,
                     s.establishmentname
-                FROM staging_table s
+                FROM staging_establishments s
                 WHERE s.federations_code IS NOT NULL;
             "
-        },
-{
+    },
+    {
+        "Core_GroupEstablishmentAggregate",
+        @"
+            INSERT INTO core.group_establishment_aggregate
+            (
+                group_uid,
+                establishment_urn,
+                establishment_name
+            )
+            SELECT DISTINCT
+                s.trusts_code::BIGINT,
+                s.urn,
+                s.establishmentname
+            FROM staging_establishments s
+            WHERE s.trusts_code IS NOT NULL
+
+            UNION
+
+            SELECT DISTINCT
+                s.federations_code::BIGINT,
+                s.urn,
+                s.establishmentname
+            FROM staging_establishments s
+            WHERE s.federations_code IS NOT NULL;
+        "
+    },
+    {
     "Core_SearchAggregate",
     @"
         INSERT INTO core.search_aggregate
@@ -661,7 +824,7 @@ class Program
             ea.statutory_high_age AS age_high,
 
             ea.group_name AS group_name,
-            ea.group_code AS group_id,
+            ega.group_id AS group_id,
             ea.group_uid::TEXT AS group_uid,
 
             NULL::INTEGER AS group_status,
@@ -720,14 +883,17 @@ class Program
 
         FROM core.establishment_aggregate ea
 
-        LEFT JOIN staging_table s
+        LEFT JOIN staging_establishments s
             ON s.urn = ea.urn
+
+        LEFT JOIN core.group_aggregate ega
+            ON ega.group_uid = ea.group_uid
 
         UNION ALL
 
         -- Groups
         SELECT DISTINCT
-            ga.group_id AS provider_id,
+            ga.group_uid::TEXT AS provider_id,
             ga.name AS provider_name,
 
             NULL::TEXT AS la_estab,
@@ -735,18 +901,34 @@ class Program
 
             ga.group_type_name AS provider_type_name,
 
-            NULL::TEXT AS provider_address,
+            NULLIF(
+                CONCAT_WS(
+                    ', ',
+                    NULLIF(TRIM(ga.address_line_1), ''),
+                    NULLIF(TRIM(ga.address_line_2), ''),
+                    NULLIF(TRIM(ga.town), ''),
+                    NULLIF(TRIM(ga.county), ''),
+                    NULLIF(TRIM(ga.postcode), '')
+                ),
+                ''
+            ) AS provider_address,
 
-            NULL::TEXT AS companies_house_number,
-            NULL::TEXT AS uk_provider_reference_number,
+            NULLIF(TRIM(ga.companies_house_number), '')
+                AS companies_house_number,
 
-            NULL::TEXT AS postcode,
-            NULL::TEXT AS county,
-            NULL::TEXT AS town,
+            NULLIF(TRIM(ga.ukprn), '')
+                AS uk_provider_reference_number,
+
+            NULLIF(TRIM(ga.postcode), '') AS postcode,
+            NULLIF(TRIM(ga.county), '') AS county,
+            NULLIF(TRIM(ga.town), '') AS town,
+
             NULL::TEXT AS local_authority_name,
 
             NULL::INTEGER AS status_code,
-            NULL::TEXT AS status_name,
+
+            NULLIF(TRIM(ga.group_status_label), '')
+                AS status_name,
 
             NULL::TEXT AS education_phase,
             NULL::TEXT AS further_education_type,
@@ -767,12 +949,12 @@ class Program
             ga.group_type_name AS group_type,
 
             COALESCE(
-                member_counts.academy_count,
+                establishment_counts.establishment_count,
                 0
             ) AS academy_counts,
 
-            NULL::DATE AS opened_date,
-            NULL::DATE AS closed_date,
+            ga.opened_date AS opened_date,
+            ga.closed_date AS closed_date,
 
             'Group' AS provider_category,
 
@@ -790,14 +972,16 @@ class Program
         LEFT JOIN
         (
             SELECT
-                group_id,
-                COUNT(*)::INTEGER AS academy_count
-            FROM core.group_member_aggregate
-            GROUP BY group_id
-        ) member_counts
-            ON member_counts.group_id = ga.group_id;
-    "
-},
-            //{ "Cleanup_Staging", @"DROP TABLE IF EXISTS staging_table;" }
+                group_uid,
+                COUNT(DISTINCT establishment_urn)::INTEGER
+                    AS establishment_count
+            FROM core.group_establishment_aggregate
+            GROUP BY group_uid
+        ) establishment_counts
+            ON establishment_counts.group_uid = ga.group_uid;
+        "
+    },
+            //{ "Cleanup_Staging", @"DROP TABLE IF EXISTS staging_establishments;" }
+            //{ "Cleanup_Staging", @"DROP TABLE IF EXISTS staging_groups;" }
         };
 }
