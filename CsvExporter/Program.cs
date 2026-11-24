@@ -13,7 +13,7 @@ class Program
     private const int Port = 5432;
     private const string Username = "postgres";
     private const string Password = "postgres";
-    private const string DatabaseName = "eprdat_development";
+    private const string DatabaseName = "eprweb_development";
 
     private static int? MaxRows = null;
     private const string EstablishmentsCsvFilePath = @"data/edubaseallestablishments.csv";
