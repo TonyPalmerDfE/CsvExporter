@@ -15,12 +15,15 @@
   </ItemGroup>
 
   <ItemGroup>
-    <None Update="data\edubasealldata.csv">
+    <None Update="data\edubaseallestablishments.csv">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
-    <None Update="data\edubasealldata_trimmed.csv">
+    <None Update="data\edubaseallestablishments_trimmed.csv">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
+	<None Update="data\edubaseallgroups.csv">
+		<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+	</None>
     <None Update="data\schema.sql">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
