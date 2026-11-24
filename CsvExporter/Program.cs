@@ -308,6 +308,7 @@ class Program
 
                 name,
                 group_type_name,
+                group_type_code,
 
                 headteacher_identifier,
                 headteacher_name,
@@ -345,6 +346,7 @@ class Program
                 NULLIF(TRIM(s.group_name), ''),
 
                 NULLIF(TRIM(s.group_type), ''),
+                NULLIF(TRIM(s.group_type_code), ''),
 
                 NULL AS headteacher_identifier,
 
