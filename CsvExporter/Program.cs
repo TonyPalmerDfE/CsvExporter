@@ -298,149 +298,149 @@ class Program
         {
             "Core_GroupAggregate",
             @"
-                INSERT INTO core.group_aggregate
-                (
-                    group_id,
-                    group_uid,
+            INSERT INTO core.group_aggregate
+            (
+                group_id,
+                group_uid,
 
-                    ukprn,
-                    companies_house_number,
+                ukprn,
+                companies_house_number,
 
-                    name,
-                    group_type_name,
+                name,
+                group_type_name,
 
-                    headteacher_identifier,
-                    headteacher_name,
+                headteacher_identifier,
+                headteacher_name,
 
-                    religious_character,
+                religious_character,
 
-                    website,
-                    telephone_number,
+                website,
+                telephone_number,
 
-                    site_name,
-                    address_line_1,
-                    address_line_2,
-                    town,
-                    county,
-                    postcode,
+                site_name,
+                address_line_1,
+                address_line_2,
+                town,
+                county,
+                postcode,
 
-                    group_status_label,
-                    group_status_effective_date,
+                group_status_label,
+                group_status_effective_date,
 
-                    opened_date,
-                    closed_date
-                )
-                SELECT
-                    NULLIF(TRIM(s.group_id), ''),
+                opened_date,
+                closed_date
+            )
+            SELECT
+                NULLIF(TRIM(s.group_id), ''),
 
-                    NULLIF(TRIM(s.group_uid), '')::BIGINT,
+                NULLIF(TRIM(s.group_uid), '')::BIGINT,
 
-                    NULLIF(TRIM(s.ukprn), ''),
+                NULLIF(TRIM(s.ukprn), ''),
 
-                    NULLIF(
-                        TRIM(s.companies_house_number),
-                        ''
-                    ),
+                NULLIF(
+                    TRIM(s.companies_house_number),
+                    ''
+                ),
 
-                    NULLIF(TRIM(s.group_name), ''),
+                NULLIF(TRIM(s.group_name), ''),
 
-                    NULLIF(TRIM(s.group_type), ''),
+                NULLIF(TRIM(s.group_type), ''),
 
-                    NULL AS headteacher_identifier,
+                NULL AS headteacher_identifier,
 
-                    NULLIF(
-                        TRIM(
-                            CONCAT_WS(
-                                ' ',
-                                NULLIF(
-                                    TRIM(s.head_of_group_first_name),
-                                    ''
-                                ),
-                                NULLIF(
-                                    TRIM(s.head_of_group_last_name),
-                                    ''
-                                )
-                            )
-                        ),
-                        ''
-                    ) AS headteacher_name,
-
-                    NULL AS religious_character,
-
-                    NULL AS website,
-                    NULL AS telephone_number,
-
-                    NULL AS site_name,
-
-                    NULLIF(
-                        TRIM(s.group_street),
-                        ''
-                    ) AS address_line_1,
-
-                    NULLIF(
+                NULLIF(
+                    TRIM(
                         CONCAT_WS(
-                            ', ',
+                            ' ',
                             NULLIF(
-                                TRIM(s.group_locality),
+                                TRIM(s.head_of_group_first_name),
                                 ''
                             ),
                             NULLIF(
-                                TRIM(s.group_address_3),
+                                TRIM(s.head_of_group_last_name),
                                 ''
                             )
-                        ),
-                        ''
-                    ) AS address_line_2,
-
-                    NULLIF(
-                        TRIM(s.group_town),
-                        ''
-                    ) AS town,
-
-                    NULLIF(
-                        TRIM(s.group_county),
-                        ''
-                    ) AS county,
-
-                    NULLIF(
-                        TRIM(s.group_postcode),
-                        ''
-                    ) AS postcode,
-
-                    NULLIF(
-                        TRIM(s.group_status),
-                        ''
-                    ) AS group_status_label,
-
-                    NULL::DATE AS group_status_effective_date,
-
-                    CASE
-                        WHEN TRIM(s.open_date) ~
-                            '^[0-9]{1,2}/[0-9]{1,2}/[0-9]{4}$'
-                        THEN TO_DATE(
-                            TRIM(s.open_date),
-                            'DD/MM/YYYY'
                         )
-                        ELSE NULL
-                    END AS opened_date,
-
-                    CASE
-                        WHEN TRIM(s.closed_date) ~
-                            '^[0-9]{1,2}/[0-9]{1,2}/[0-9]{4}$'
-                        THEN TO_DATE(
-                            TRIM(s.closed_date),
-                            'DD/MM/YYYY'
-                        )
-                        ELSE NULL
-                    END AS closed_date
-
-                FROM staging_groups s
-
-                WHERE NULLIF(
-                    TRIM(s.group_uid),
+                    ),
                     ''
-                ) IS NOT NULL;
-            "
+                ) AS headteacher_name,
+
+                NULL AS religious_character,
+
+                NULL AS website,
+                NULL AS telephone_number,
+
+                NULL AS site_name,
+
+                NULLIF(
+                    TRIM(s.group_street),
+                    ''
+                ) AS address_line_1,
+
+                NULLIF(
+                    CONCAT_WS(
+                        ', ',
+                        NULLIF(
+                            TRIM(s.group_locality),
+                            ''
+                        ),
+                        NULLIF(
+                            TRIM(s.group_address_3),
+                            ''
+                        )
+                    ),
+                    ''
+                ) AS address_line_2,
+
+                NULLIF(
+                    TRIM(s.group_town),
+                    ''
+                ) AS town,
+
+                NULLIF(
+                    TRIM(s.group_county),
+                    ''
+                ) AS county,
+
+                NULLIF(
+                    TRIM(s.group_postcode),
+                    ''
+                ) AS postcode,
+
+                NULLIF(
+                    TRIM(s.group_status),
+                    ''
+                ) AS group_status_label,
+
+                NULL::DATE AS group_status_effective_date,
+
+                CASE
+                    WHEN TRIM(s.open_date) ~
+                        '^[0-9]{1,2}/[0-9]{1,2}/[0-9]{4}$'
+                    THEN TO_DATE(
+                        TRIM(s.open_date),
+                        'DD/MM/YYYY'
+                    )
+                    ELSE NULL
+                END AS opened_date,
+
+                CASE
+                    WHEN TRIM(s.closed_date) ~
+                        '^[0-9]{1,2}/[0-9]{1,2}/[0-9]{4}$'
+                    THEN TO_DATE(
+                        TRIM(s.closed_date),
+                        'DD/MM/YYYY'
+                    )
+                    ELSE NULL
+                END AS closed_date
+
+            FROM staging_groups s
+
+            WHERE NULLIF(
+                TRIM(s.group_uid),
+                ''
+            ) IS NOT NULL;
+        "
         },
         {
             "Core_EstablishmentAggregate",
@@ -477,6 +477,7 @@ class Program
                     local_authority_code,
                     local_authority_name,
 
+                    gender,
                     statutory_low_age,
                     statutory_high_age,
 
@@ -558,6 +559,7 @@ class Program
                     CAST(NULLIF(s.la_code, '') AS INTEGER),
                     s.la_name,
 
+                    s.gender_name,
                     CAST(NULLIF(s.statutorylowage, '') AS INTEGER),
                     CAST(NULLIF(s.statutoryhighage, '') AS INTEGER),
 
