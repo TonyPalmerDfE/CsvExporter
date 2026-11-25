@@ -106,6 +106,14 @@ CREATE TABLE core.establishment_aggregate
     -- characteristics
     gender TEXT,
     religious_character TEXT,
+    religious_ethos TEXT,
+    diocese TEXT,
+    sen TEXT[],
+    number_of_pupils INTEGER,
+    number_of_boys INTEGER,
+    number_of_girls INTEGER,
+    fsm_percentage NUMERIC,
+    fsm_number INTEGER,
 
     -- inspection
     ofsted_inspection_date DATE,
@@ -115,7 +123,7 @@ CREATE TABLE core.establishment_aggregate
     headteacher_identifier TEXT,
     headteacher_name TEXT,
 
-    -- SEND
+        -- SEND
     sen_provision TEXT,
 
     -- contact
@@ -339,14 +347,10 @@ CREATE TABLE core.group_aggregate
     -- details
     name TEXT NOT NULL,
     group_type_name TEXT,
-    group_type_id TEXT,
 
     -- leadership
     headteacher_identifier TEXT,
     headteacher_name TEXT,
-    head_of_group_title TEXT,
-    head_of_group_firstname TEXT,
-    head_of_group_lastname TEXT,
 
     -- characteristics
     religious_character TEXT,
@@ -365,8 +369,7 @@ CREATE TABLE core.group_aggregate
 
     -- status
     group_status_label TEXT,
-    group_status_effective_date DATE,
-    closed_date DATE
+    group_status_effective_date DATE
 );
 
 -- ------------------------------------------------------------

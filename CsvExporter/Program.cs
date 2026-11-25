@@ -225,13 +225,9 @@ class Program
                     ukprn,
                     companies_house_number,
                     name,
-                    group_type_name,
-                    group_type_id,                    
+                    group_type_name,                 
                     headteacher_identifier,
                     headteacher_name,
-                    head_of_group_title,
-                    head_of_group_firstname,
-                    head_of_group_lastname,
                     religious_character,
                     website,
                     telephone_number,
@@ -242,8 +238,7 @@ class Program
                     county,
                     postcode,
                     group_status_label,
-                    group_status_effective_date,
-                    closed_date
+                    group_status_effective_date
                 )
                 SELECT
                     group_code,
@@ -252,12 +247,8 @@ class Program
                     NULL AS companies_house_number,
                     group_name,
                     group_type_name,
-                    NULL AS group_type_id,
                     NULL AS headteacher_identifier,
                     NULL AS headteacher_name,
-                    NULL AS head_of_group_title,
-                    NULL AS head_of_group_firstname,
-                    NULL AS head_of_group_lastname,
                     NULL AS religious_character,
                     NULL AS website,
                     NULL AS telephone_number,
@@ -268,8 +259,7 @@ class Program
                     NULL AS county,
                     NULL AS postcode,
                     NULL AS group_status_label,
-                    NULL::DATE AS group_status_effective_date,
-                    NULL::DATE AS closed_date
+                    NULL::DATE AS group_status_effective_date
                 FROM
                 (
                     SELECT DISTINCT
@@ -320,9 +310,22 @@ class Program
                     statutory_low_age,
                     statutory_high_age,
                     religious_character,
+                    religious_ethos,
+                    diocese,
+
+                    sen_provision,
+                    sen,
+        
+                    number_of_pupils,
+                    number_of_boys,
+                    number_of_girls,
+                    fsm_percentage,
+                    fsm_number,
+
                     ofsted_inspection_date,
                     ofsted_report_url,
                     headteacher_name,
+                    
                     website,
                     telephone_number
                 )
@@ -368,6 +371,33 @@ class Program
                     CAST(NULLIF(s.statutorylowage, '') AS INTEGER),
                     CAST(NULLIF(s.statutoryhighage, '') AS INTEGER),
                     s.religiouscharacter_name,
+                    NULLIF(TRIM(s.religiousethos_name), ''),
+                    NULLIF(TRIM(s.diocese_name), ''),
+                    s.typeofresourcedprovision_name,
+                    ARRAY_REMOVE(
+                        ARRAY[
+                            NULLIF(TRIM(s.sen1_name), ''),
+                            NULLIF(TRIM(s.sen2_name), ''),
+                            NULLIF(TRIM(s.sen3_name), ''),
+                            NULLIF(TRIM(s.sen4_name), ''),
+                            NULLIF(TRIM(s.sen5_name), ''),
+                            NULLIF(TRIM(s.sen6_name), ''),
+                            NULLIF(TRIM(s.sen7_name), ''),
+                            NULLIF(TRIM(s.sen8_name), ''),
+                            NULLIF(TRIM(s.sen9_name), ''),
+                            NULLIF(TRIM(s.sen10_name), ''),
+                            NULLIF(TRIM(s.sen11_name), ''),
+                            NULLIF(TRIM(s.sen12_name), ''),
+                            NULLIF(TRIM(s.sen13_name), '')
+                        ],
+                        NULL
+                    ),
+                    NULLIF(TRIM(s.numberofpupils), '')::INTEGER,
+                    NULLIF(TRIM(s.numberofboys), '')::INTEGER,
+                    NULLIF(TRIM(s.numberofgirls), '')::INTEGER,
+                    NULLIF(TRIM(s.percentagefsm), '')::NUMERIC,
+                    NULLIF(TRIM(s.fsm), '')::INTEGER,
+
                     CASE
                         WHEN TRIM(s.dateoflastinspectionvisit) ~ '^[0-9]'
                         THEN TO_DATE(LEFT(REPLACE(REPLACE(TRIM(s.dateoflastinspectionvisit), '/', '-'), '.', '-'), 10), 'DD-MM-YYYY')
