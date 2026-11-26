@@ -10,7 +10,7 @@ namespace CsvExporter;
 class Program
 {
     private const string Host = "localhost";
-    private const int Port = 5440;
+    private const int Port = 5432;
     private const string Username = "postgres";
     private const string Password = "postgres";
     private const string DatabaseName = "eprweb_development";
@@ -18,6 +18,7 @@ class Program
     private static int? MaxRows = null;
     private const string EstablishmentsCsvFilePath = @"data/edubaseallestablishments.csv";
     private const string GroupsCsvFilePath = @"data/edubaseallgroups.csv";
+    private const string GovernorsCsvFilePath = @"data/edubaseallgovernors.csv";
     private const string SchemaFilePath = @"data/schema.sql";
 
     private static readonly string AdminConnectionString =
@@ -43,6 +44,14 @@ class Program
             return;
         }
 
+        if (!File.Exists(GovernorsCsvFilePath))
+        {
+            Console.WriteLine(
+                $"Error: Governors CSV file '{GovernorsCsvFilePath}' not found.");
+
+            return;
+        }
+
         if (!File.Exists(SchemaFilePath))
         {
             Console.WriteLine($"Error: Schema File '{SchemaFilePath}' not found.");
@@ -59,6 +68,8 @@ class Program
                 new(TargetConnectionString);
 
             await conn.OpenAsync();
+
+            // Establishments
 
             Console.WriteLine(
                 "Reading establishments CSV headers and generating staging table...");
@@ -80,6 +91,8 @@ class Program
                 EstablishmentsCsvFilePath,
                 establishmentHeaders);
 
+            // Groups
+
             Console.WriteLine(
                 "Reading groups CSV headers and generating staging table...");
 
@@ -99,6 +112,28 @@ class Program
                 "staging_groups",
                 GroupsCsvFilePath,
                 groupHeaders);
+
+            // Governors
+
+            Console.WriteLine(
+                "Reading governors CSV headers and generating staging table...");
+
+            string[] governorHeaders =
+                GetSanitizedHeaders(GovernorsCsvFilePath);
+
+            await RecreateStagingTable(
+                conn,
+                "staging_governors",
+                governorHeaders);
+
+            Console.WriteLine(
+                "Streaming governors via NpgsqlBinaryImporter...");
+
+            await BulkLoadCsvToStaging(
+                conn,
+                "staging_governors",
+                GovernorsCsvFilePath,
+                governorHeaders);
 
             Console.WriteLine("Executing SQL mappings to normalized tables...");
             await ExecuteMappingScripts(conn);
@@ -150,8 +185,10 @@ class Program
             string wipeSql = @"
                 DROP SCHEMA IF EXISTS ref CASCADE;
                 DROP SCHEMA IF EXISTS core CASCADE;
+
                 DROP TABLE IF EXISTS staging_establishments;
                 DROP TABLE IF EXISTS staging_groups;
+                DROP TABLE IF EXISTS staging_governors;
             ";
 
             await using var wipeCmd = new NpgsqlCommand(wipeSql, targetConn);
@@ -442,6 +479,99 @@ class Program
                 TRIM(s.group_uid),
                 ''
             ) IS NOT NULL;
+        "
+        },
+        {
+            "Core_GroupGovernorAggregate",
+            @"
+            INSERT INTO core.group_governor_aggregate
+            (
+                group_uid,
+                governor_id,
+                title,
+                first_name,
+                last_name,
+                role,
+                role_order,
+                appointing_body,
+                appointment_start_date,
+                appointment_end_date
+            )
+            SELECT DISTINCT
+                ga.group_uid,
+
+                NULLIF(
+                    TRIM(s.gid),
+                    ''
+                ) AS governor_id,
+
+                NULLIF(
+                    TRIM(s.title),
+                    ''
+                ) AS title,
+
+                NULLIF(
+                    TRIM(s.forename_1),
+                    ''
+                ) AS first_name,
+
+                NULLIF(
+                    TRIM(s.surname),
+                    ''
+                ) AS last_name,
+
+                NULLIF(
+                    TRIM(s.role),
+                    ''
+                ) AS role,
+
+                CASE TRIM(s.role)
+                    WHEN 'Chair of Local Governing Body' THEN 15
+                    WHEN 'Local Governor' THEN 25
+                    WHEN 'Chair of Trustees' THEN 30
+                    WHEN 'Member' THEN 50
+                    WHEN 'Accounting Officer' THEN 60
+                    ELSE 2147483647
+                END AS role_order,
+
+                NULLIF(
+                    TRIM(s.appointing_body),
+                    ''
+                ) AS appointing_body,
+
+                CASE
+                    WHEN TRIM(s.date_of_appointment) ~
+                        '^[0-9]{1,2}/[0-9]{1,2}/[0-9]{4}$'
+                    THEN TO_DATE(
+                        TRIM(s.date_of_appointment),
+                        'DD/MM/YYYY'
+                    )
+                    ELSE NULL
+                END AS appointment_start_date,
+
+                CASE
+                    WHEN TRIM(s.date_term_of_office_ends_ended) ~
+                        '^[0-9]{1,2}/[0-9]{1,2}/[0-9]{4}$'
+                    THEN TO_DATE(
+                        TRIM(s.date_term_of_office_ends_ended),
+                        'DD/MM/YYYY'
+                    )
+                    ELSE NULL
+                END AS appointment_end_date
+
+            FROM staging_governors s
+
+            INNER JOIN core.group_aggregate ga
+                ON ga.group_uid =
+                    NULLIF(TRIM(s.uid), '')::BIGINT
+
+            WHERE NULLIF(TRIM(s.uid), '') IS NOT NULL
+              AND TRIM(s.uid) ~ '^[0-9]+$'
+              AND NULLIF(TRIM(s.gid), '') IS NOT NULL
+              AND NULLIF(TRIM(s.role), '') IS NOT NULL
+              AND NULLIF(TRIM(s.surname), '') IS NOT NULL
+              AND TRIM(s.date_of_appointment) ~
+                  '^[0-9]{1,2}/[0-9]{1,2}/[0-9]{4}$';
         "
         },
         {
@@ -736,32 +866,6 @@ class Program
                 OR s.headlastname IS NOT NULL;
             "
         },
-        {
-            "Core_GroupMemberAggregate",
-            @"
-                INSERT INTO core.group_member_aggregate
-                (
-                    group_uid,
-                    establishment_urn,
-                    establishment_name
-                )
-                SELECT DISTINCT
-                    s.trusts_code::BIGINT,
-                    s.urn,
-                    s.establishmentname
-                FROM staging_establishments s
-                WHERE s.trusts_code IS NOT NULL
-
-                UNION
-
-                SELECT DISTINCT
-                    s.federations_code::BIGINT,
-                    s.urn,
-                    s.establishmentname
-                FROM staging_establishments s
-                WHERE s.federations_code IS NOT NULL;
-            "
-    },
     {
         "Core_GroupEstablishmentAggregate",
         @"
