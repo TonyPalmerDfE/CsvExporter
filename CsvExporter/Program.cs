@@ -526,13 +526,32 @@ class Program
                 ) AS role,
 
                 CASE TRIM(s.role)
+                    WHEN 'N/A' THEN 0
+                    WHEN 'Chair of Governors' THEN 10
                     WHEN 'Chair of Local Governing Body' THEN 15
+                    WHEN 'Governor' THEN 20
                     WHEN 'Local Governor' THEN 25
                     WHEN 'Chair of Trustees' THEN 30
+                    WHEN 'Trustee' THEN 40
                     WHEN 'Member' THEN 50
                     WHEN 'Accounting Officer' THEN 60
+                    WHEN 'Chief Financial Officer' THEN 70
+                    WHEN 'Shared Chair of Local Governing Body - Group' THEN 110
+                    WHEN 'Shared Chair of Local Governing Body - Establishment' THEN 120
+                    WHEN 'Shared Local Governor - Group' THEN 130
+                    WHEN 'Shared Local Governor - Establishment' THEN 140
+                    WHEN 'Governance Professional - Local Authority Maintained School' THEN 150
+                    WHEN 'Governance Professional - Federation' THEN 151
+                    WHEN 'Local Governance Professional - Individual Academy or Free School' THEN 152
+                    WHEN 'Governance Professional - Multi-Academy Trust (MAT)' THEN 153
+                    WHEN 'Shared Governance Professional - Group' THEN 154
+                    WHEN 'Shared Governance Professional - Establishment' THEN 155
+                    WHEN 'Member - Individual' THEN 156
+                    WHEN 'Member - Organisation' THEN 157
+                    WHEN 'Governance Professional - Secure Single-Academy Trust (SSAT)' THEN 160
+                    WHEN 'Governance Professional - Single-Academy Trust (SAT)' THEN 161
                     ELSE 2147483647
-                END AS role_order,
+                END AS role_order
 
                 NULLIF(
                     TRIM(s.appointing_body),
