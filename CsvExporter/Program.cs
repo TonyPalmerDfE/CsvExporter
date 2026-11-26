@@ -551,7 +551,7 @@ class Program
                     WHEN 'Governance Professional - Secure Single-Academy Trust (SSAT)' THEN 160
                     WHEN 'Governance Professional - Single-Academy Trust (SAT)' THEN 161
                     ELSE 2147483647
-                END AS role_order
+                END AS role_order,
 
                 NULLIF(
                     TRIM(s.appointing_body),
