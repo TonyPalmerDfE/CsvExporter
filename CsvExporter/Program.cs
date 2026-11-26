@@ -10,7 +10,7 @@ namespace CsvExporter;
 class Program
 {
     private const string Host = "localhost";
-    private const int Port = 5432;
+    private const int Port = 5440;
     private const string Username = "postgres";
     private const string Password = "postgres";
     private const string DatabaseName = "eprweb_development";
@@ -453,36 +453,28 @@ class Program
                     ukprn,
                     name,
                     establishment_number,
-
                     status_code,
                     status_date,
-
                     establishment_type_name,
-
                     education_phase_name,
-
                     opened_date,
                     closed_date,
-
                     group_code,
                     group_uid,
                     group_name,
                     group_type_name,
-
                     site_name,
                     address_line_1,
                     address_line_2,
                     town,
                     county,
                     postcode,
-
                     local_authority_code,
                     local_authority_name,
 
                     gender,
                     statutory_low_age,
                     statutory_high_age,
-
                     religious_character,
                     religious_ethos,
                     diocese,
@@ -498,7 +490,6 @@ class Program
 
                     ofsted_inspection_date,
                     ofsted_report_url,
-
                     headteacher_name,
                     
                     website,
@@ -509,34 +500,22 @@ class Program
                     NULLIF(TRIM(s.ukprn), ''),
                     s.establishmentname,
                     s.establishmentnumber,
-
                     CAST(NULLIF(s.establishmentstatus_code, '') AS INTEGER),
-
                     CASE
                         WHEN TRIM(s.opendate) ~ '^[0-9]'
-                        THEN TO_DATE(
-                            LEFT(REPLACE(REPLACE(TRIM(s.opendate), '/', '-'), '.', '-'), 10),
-                            'DD-MM-YYYY')
+                        THEN TO_DATE(LEFT(REPLACE(REPLACE(TRIM(s.opendate), '/', '-'), '.', '-'), 10), 'DD-MM-YYYY')
                         ELSE NULL
                     END,
-
                     s.typeofestablishment_name,
-
                     s.phaseofeducation_name,
-
                     CASE
                         WHEN TRIM(s.opendate) ~ '^[0-9]'
-                        THEN TO_DATE(
-                            LEFT(REPLACE(REPLACE(TRIM(s.opendate), '/', '-'), '.', '-'), 10),
-                            'DD-MM-YYYY')
+                        THEN TO_DATE(LEFT(REPLACE(REPLACE(TRIM(s.opendate), '/', '-'), '.', '-'), 10), 'DD-MM-YYYY')
                         ELSE NULL
                     END,
-
                     CASE
                         WHEN TRIM(s.closedate) ~ '^[0-9]'
-                        THEN TO_DATE(
-                            LEFT(REPLACE(REPLACE(TRIM(s.closedate), '/', '-'), '.', '-'), 10),
-                            'DD-MM-YYYY')
+                        THEN TO_DATE(LEFT(REPLACE(REPLACE(TRIM(s.closedate), '/', '-'), '.', '-'), 10), 'DD-MM-YYYY')
                         ELSE NULL
                     END,
 
@@ -557,14 +536,12 @@ class Program
                     s.town,
                     s.county_name,
                     s.postcode,
-
                     CAST(NULLIF(s.la_code, '') AS INTEGER),
                     s.la_name,
 
                     s.gender_name,
                     CAST(NULLIF(s.statutorylowage, '') AS INTEGER),
                     CAST(NULLIF(s.statutoryhighage, '') AS INTEGER),
-
                     s.religiouscharacter_name,
                     NULLIF(TRIM(s.religiousethos_name), ''),
                     NULLIF(TRIM(s.diocese_name), ''),
@@ -595,31 +572,148 @@ class Program
 
                     CASE
                         WHEN TRIM(s.dateoflastinspectionvisit) ~ '^[0-9]'
-                        THEN TO_DATE(
-                            LEFT(REPLACE(REPLACE(TRIM(s.dateoflastinspectionvisit), '/', '-'), '.', '-'), 10),
-                            'DD-MM-YYYY')
+                        THEN TO_DATE(LEFT(REPLACE(REPLACE(TRIM(s.dateoflastinspectionvisit), '/', '-'), '.', '-'), 10), 'DD-MM-YYYY')
                         ELSE NULL
                     END,
-
                     s.inspectoratereport,
-
-                    TRIM(CONCAT_WS(
-                        ' ',
-                        s.headfirstname,
-                        s.headlastname
-                    )),
-
+                    TRIM(CONCAT_WS(' ', s.headfirstname, s.headlastname)),
                     s.schoolwebsite,
                     s.telephonenum
-
                 FROM staging_establishments s
-
-            LEFT JOIN core.group_aggregate ga
-                ON ga.group_uid::TEXT = COALESCE(
-                    NULLIF(TRIM(s.trusts_code), ''),
-                    NULLIF(TRIM(s.federations_code), '')
-                )
+                LEFT JOIN core.group_aggregate ga
+                    ON ga.group_id = COALESCE(s.trusts_code, s.federations_code)
                 WHERE s.urn IS NOT NULL;
+            "
+        },
+        {
+            "Core_EstablishmentDownloadAggregate",
+            @"
+                INSERT INTO core.establishment_download_aggregate
+                (
+                    urn,
+                    establishment_number,
+                    provider_name,
+                    local_authority_id,
+                    local_authority,
+                    education_phase_id,
+                    education_phase,
+                    provider_type_id,
+                    provider_type,
+                    provider_status_id,
+                    provider_status,
+                    open_date,
+                    closed_date,
+                    unique_reference_number,
+                    uk_provider_reference_number,
+                    provider_number,
+                    address_line_1,
+                    address_line_2,
+                    town_or_city,
+                    county,
+                    postcode,
+                    website,
+                    phone_number,
+                    statutory_low_age,
+                    statutory_high_age,
+                    religious_character,
+                    religious_ethos,
+                    diocese
+                )
+                SELECT DISTINCT
+                    CAST(NULLIF(s.urn, '') AS BIGINT),
+                    s.establishmentnumber,
+                    s.establishmentname,
+                    CAST(NULLIF(s.la_code, '') AS INTEGER),
+                    s.la_name,
+                    CAST(NULLIF(s.phaseofeducation_code, '') AS INTEGER),
+                    s.phaseofeducation_name,
+                    CAST(NULLIF(s.typeofestablishment_code, '') AS INTEGER),
+                    s.typeofestablishment_name,
+                    CAST(NULLIF(s.establishmentstatus_code, '') AS INTEGER),
+                    s.establishmentstatus_name,
+                    CASE
+                        WHEN TRIM(s.opendate) ~ '^[0-9]'
+                        THEN TO_DATE(LEFT(REPLACE(REPLACE(TRIM(s.opendate), '/', '-'), '.', '-'), 10), 'DD-MM-YYYY')
+                        ELSE NULL
+                    END,
+                    CASE
+                        WHEN TRIM(s.closedate) ~ '^[0-9]'
+                        THEN TO_DATE(LEFT(REPLACE(REPLACE(TRIM(s.closedate), '/', '-'), '.', '-'), 10), 'DD-MM-YYYY')
+                        ELSE NULL
+                    END,
+                    CAST(NULLIF(s.urn, '') AS BIGINT),
+                    CAST(NULLIF(s.ukprn, '') AS BIGINT),
+                    s.establishmentnumber,
+                    s.street,
+                    s.locality,
+                    s.town,
+                    s.county_name,
+                    s.postcode,
+                    s.schoolwebsite,
+                    s.telephonenum,
+                    CAST(NULLIF(s.statutorylowage, '') AS INTEGER),
+                    CAST(NULLIF(s.statutoryhighage, '') AS INTEGER),
+                    s.religiouscharacter_name,
+                    s.religiousethos_name,
+                    s.diocese_name
+                FROM staging_establishments s
+                WHERE s.urn IS NOT NULL;
+            "
+        },
+        {
+            "Core_GroupDownloadAggregate",
+            @"
+                INSERT INTO core.group_download_aggregate
+                (
+                    group_id,
+                    group_uid,
+                    group_name,
+                    group_type_id,
+                    group_type,
+                    group_status_id,
+                    group_status,
+                    open_date,
+                    closed_date,
+                    incorporated_on,
+                    companies_house_number,
+                    uk_provider_reference_number,
+                    head_of_group_title,
+                    head_of_group_first_name,
+                    head_of_group_last_name,
+                    group_address_line_1,
+                    group_address_line_2,
+                    group_address_line_3,
+                    group_town_or_city,
+                    group_county,
+                    group_postcode
+                )
+                SELECT
+                    s.group_id,
+                    NULL::BIGINT,
+                    NULLIF(TRIM(s.group_name), ''),
+                    NULL::INTEGER,
+                    'Multi-Academy Trust',
+                    NULL::INTEGER,
+                    NULL::TEXT,
+                    NULL::DATE,
+                    NULL::DATE,
+                    NULL::DATE,
+                    NULLIF(
+                        TRIM(s.companies_house_number),
+                        ''
+                    ),
+                    NULL::TEXT,
+                    NULL::TEXT,
+                    NULL::TEXT,
+                    NULL::TEXT,
+                    MAX(s.group_street),
+                    MAX(s.group_locality),
+                    NULL::TEXT,
+                    MAX(s.group_town),
+                    MAX(s.group_county),
+                    MAX(s.group_postcode)
+                FROM staging_groups s
+                GROUP BY s.group_id, s.group_name, s.companies_house_number;
             "
         },
         {
@@ -634,19 +728,14 @@ class Program
                 )
                 SELECT DISTINCT
                     s.urn,
-                    md5(
-                        COALESCE(s.headfirstname, '')
-                        || COALESCE(s.headlastname, '')
-                    ),
-                    TRIM(CONCAT_WS(
-                        ' ',
-                        s.headfirstname,
-                        s.headlastname)),
+                    md5(COALESCE(s.headfirstname, '') || COALESCE(s.headlastname, '')),
+                    TRIM(CONCAT_WS(' ', s.headfirstname, s.headlastname)),
                     NULL::DATE
                 FROM staging_establishments s
                 WHERE s.headfirstname IS NOT NULL
                 OR s.headlastname IS NOT NULL;
-            "},
+            "
+        },
         {
             "Core_GroupMemberAggregate",
             @"
