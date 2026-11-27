@@ -591,7 +591,7 @@ class Program
               AND NULLIF(TRIM(s.surname), '') IS NOT NULL
               AND TRIM(s.date_of_appointment) ~
                   '^[0-9]{1,2}/[0-9]{1,2}/[0-9]{4}$';
-        "
+            "
         },
         {
             "Core_EstablishmentAggregate",
@@ -872,17 +872,107 @@ class Program
                 (
                     establishment_urn,
                     governor_id,
-                    governor_name,
-                    start_date
+                    title,
+                    first_name,
+                    last_name,
+                    role,
+                    role_order,
+                    appointing_body,
+                    appointment_start_date,
+                    appointment_end_date
                 )
                 SELECT DISTINCT
-                    s.urn,
-                    md5(COALESCE(s.headfirstname, '') || COALESCE(s.headlastname, '')),
-                    TRIM(CONCAT_WS(' ', s.headfirstname, s.headlastname)),
-                    NULL::DATE
-                FROM staging_establishments s
-                WHERE s.headfirstname IS NOT NULL
-                OR s.headlastname IS NOT NULL;
+                    CAST(TRIM(s.urn) AS BIGINT) AS establishment_urn,
+                     NULLIF(
+                            TRIM(s.gid),
+                            ''
+                        ) AS governor_id,
+
+                        NULLIF(
+                            TRIM(s.title),
+                            ''
+                        ) AS title,
+
+                        NULLIF(
+                            TRIM(s.forename_1),
+                            ''
+                        ) AS first_name,
+
+                        NULLIF(
+                            TRIM(s.surname),
+                            ''
+                        ) AS last_name,
+
+                        NULLIF(
+                            TRIM(s.role),
+                            ''
+                        ) AS role,
+
+                        CASE TRIM(s.role)
+                            WHEN 'N/A' THEN 0
+                            WHEN 'Chair of Governors' THEN 10
+                            WHEN 'Chair of Local Governing Body' THEN 15
+                            WHEN 'Governor' THEN 20
+                            WHEN 'Local Governor' THEN 25
+                            WHEN 'Chair of Trustees' THEN 30
+                            WHEN 'Trustee' THEN 40
+                            WHEN 'Member' THEN 50
+                            WHEN 'Accounting Officer' THEN 60
+                            WHEN 'Chief Financial Officer' THEN 70
+                            WHEN 'Shared Chair of Local Governing Body - Group' THEN 110
+                            WHEN 'Shared Chair of Local Governing Body - Establishment' THEN 120
+                            WHEN 'Shared Local Governor - Group' THEN 130
+                            WHEN 'Shared Local Governor - Establishment' THEN 140
+                            WHEN 'Governance Professional - Local Authority Maintained School' THEN 150
+                            WHEN 'Governance Professional - Federation' THEN 151
+                            WHEN 'Local Governance Professional - Individual Academy or Free School' THEN 152
+                            WHEN 'Governance Professional - Multi-Academy Trust (MAT)' THEN 153
+                            WHEN 'Shared Governance Professional - Group' THEN 154
+                            WHEN 'Shared Governance Professional - Establishment' THEN 155
+                            WHEN 'Member - Individual' THEN 156
+                            WHEN 'Member - Organisation' THEN 157
+                            WHEN 'Governance Professional - Secure Single-Academy Trust (SSAT)' THEN 160
+                            WHEN 'Governance Professional - Single-Academy Trust (SAT)' THEN 161
+                            ELSE 2147483647
+                        END AS role_order,
+
+                        NULLIF(
+                            TRIM(s.appointing_body),
+                            ''
+                        ) AS appointing_body,
+
+                        CASE
+                            WHEN TRIM(s.date_of_appointment) ~
+                                '^[0-9]{1,2}/[0-9]{1,2}/[0-9]{4}$'
+                            THEN TO_DATE(
+                                TRIM(s.date_of_appointment),
+                                'DD/MM/YYYY'
+                            )
+                            ELSE NULL
+                        END AS appointment_start_date,
+
+                        CASE
+                            WHEN TRIM(s.date_term_of_office_ends_ended) ~
+                                '^[0-9]{1,2}/[0-9]{1,2}/[0-9]{4}$'
+                            THEN TO_DATE(
+                                TRIM(s.date_term_of_office_ends_ended),
+                                'DD/MM/YYYY'
+                            )
+                            ELSE NULL
+                        END AS appointment_end_date
+
+                    FROM staging_governors s
+
+                    INNER JOIN core.establishment_aggregate ea
+                        ON ea.urn = TRIM(s.urn)
+
+                    WHERE NULLIF(TRIM(s.urn), '') IS NOT NULL
+                      AND TRIM(s.urn) ~ '^[0-9]+$'
+                      AND NULLIF(TRIM(s.gid), '') IS NOT NULL
+                      AND NULLIF(TRIM(s.role), '') IS NOT NULL
+                      AND NULLIF(TRIM(s.surname), '') IS NOT NULL
+                      AND TRIM(s.date_of_appointment) ~
+                          '^[0-9]{1,2}/[0-9]{1,2}/[0-9]{4}$';
             "
         },
     {
